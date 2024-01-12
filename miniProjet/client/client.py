@@ -60,20 +60,6 @@ def create_account(username, master_password):
     return user_data
 
 
-# Example usage
-username = input("Enter your username: ")
-master_password = input("Enter your master password: ")
-
-user_data = create_account(username, master_password)
-
-# Send data to the server
-response = requests.post('http://localhost:5000/register', json=user_data)
-
-if response.status_code == 200:
-    print("Account created successfully.")
-else:
-    print("An error occurred while creating the account.")
-
 
 def login(username, master_password):
     # Login logic would be similar to account creation, but instead, we would
@@ -105,18 +91,3 @@ def change_password(username, old_password, new_password):
     else:
         return login_response
 
-
-# Example usage
-# For login
-login_response = login("username", "master_password")
-if login_response.status_code == 200:
-    print("Login successful.")
-else:
-    print("Login failed.")
-
-# For password change
-change_password_response = change_password("username", "old_master_password", "new_master_password")
-if change_password_response.status_code == 200:
-    print("Password changed successfully.")
-else:
-    print("Password change failed.")
