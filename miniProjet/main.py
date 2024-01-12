@@ -1,14 +1,7 @@
 from client.client import *
-from server.server import app
-import threading
-
-
-# Function to start the server in a separate thread
-
 
 
 def main():
-    app.run(debug=False, port=5000)
     while True:
         print("\nWelcome to the Encrypted File System")
         print("1. Register")

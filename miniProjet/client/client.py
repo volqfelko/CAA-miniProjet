@@ -60,7 +60,6 @@ def create_account(username, master_password):
     return user_data
 
 
-
 def login(username, master_password):
     # Login logic would be similar to account creation, but instead, we would
     # send a login request to the server with the username and master password hash

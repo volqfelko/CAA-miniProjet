@@ -11,12 +11,16 @@ def register():
     user_data = request.json
     username = user_data['username']
 
-    # Check if user already exists
-    if os.path.exists(users_file):
-        with open(users_file, 'r') as file:
-            users = json.load(file)
-    else:
-        users = {}
+    # Initialize users dictionary
+    users = {}
+
+    # Check if the file exists and is not empty
+    if os.path.exists(users_file) and os.path.getsize(users_file) > 0:
+        try:
+            with open(users_file, 'r') as file:
+                users = json.load(file)
+        except json.JSONDecodeError:
+            return jsonify({"error": "Error reading users file"}), 500
 
     if username in users:
         return jsonify({"error": "User already exists"}), 409
@@ -65,8 +69,4 @@ def change_password():
     return jsonify({"error": "User not found"}), 404
 
 
-def run_server():
-    app.run(debug=True, port=5000)
-
-
-# ... (Previous client-side code with account creation, login, and password change)
+app.run(debug=True, port=5000)
