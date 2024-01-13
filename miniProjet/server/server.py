@@ -44,7 +44,16 @@ def login():
         with open(users_file, 'r') as file:
             users = json.load(file)
             if username in users and users[username]['master_password_hash'] == master_password_hash:
-                return jsonify({"success": True}), 200
+                encrypted_symmetric_key = users[username]['encrypted_symmetric_key']
+                encrypted_private_key = users[username]['encrypted_private_key']
+
+                encrypted_keys = {
+                    'encrypted_symmetric_key': encrypted_symmetric_key,
+                    'encrypted_private_key': encrypted_private_key
+                }
+
+                return jsonify(encrypted_keys), 200
+
             else:
                 return jsonify({"error": "Invalid credentials"}), 401
     return jsonify({"error": "User not found"}), 404

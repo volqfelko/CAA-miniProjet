@@ -1,3 +1,4 @@
+import requests
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
@@ -62,21 +63,25 @@ def create_account(username, master_password):
         'encrypted_private_key': encrypted_private_key
     }
 
-    return user_data
+    response = requests.post('http://localhost:5000/register', json=user_data)
+
+    return response
 
 
 def login(username, master_password):
     # Derive the master key using the hashed username as the salt
     salt = hash_username(username)
-    master_key = argon2_hash(master_password, salt)
+    master_key = argon2_hash(master_password, salt).encode('utf-8')[-16:]
 
     # Prepare the master key for encryption by ensuring it's the right size
-    encryption_master_key = master_key[:32]
+    master_password_hash = argon2_hash(master_password, master_key).encode('utf-8')[-16:]
+
+    stretched_master_key = HKDF(master_key, 32, salt, SHA256, context=HKDF_INFO)
 
     # Send the hashed username and master key to the server for authentication
     login_data = {
         'username': username,
-        'master_key': base64.b64encode(encryption_master_key).decode()
+        'master_password_hash': base64.b64encode(master_password_hash).decode()
     }
 
     # Make a request to the server's login endpoint
@@ -85,22 +90,25 @@ def login(username, master_password):
     if response.status_code == 200:
         # If login is successful, decrypt the received keys
         keys = response.json()
-        symmetric_key = base64.b64decode(keys['symmetric_key'])
-        private_key = base64.b64decode(keys['private_key'])
+        encrypted_symmetric_key = keys['encrypted_symmetric_key']
+        encrypted_private_key = base64.b64decode(keys['encrypted_private_key'])
 
         # Use the master key to decrypt the symmetric key
-        cipher = ChaCha20_Poly1305.new(key=encryption_master_key)
-        cipher.nonce = symmetric_key[:12]
-        symmetric_key = cipher.decrypt_and_verify(symmetric_key[12:28], symmetric_key[28:])
+        cipher = ChaCha20_Poly1305.new(key=stretched_master_key)
+        # TODO IV ????
+        cipher.nonce = encrypted_symmetric_key[:12]
+        symmetric_key = cipher.decrypt_and_verify(encrypted_symmetric_key[12:28], encrypted_symmetric_key[28:])
 
         # Use the symmetric key to decrypt the private key
         cipher = ChaCha20_Poly1305.new(key=symmetric_key)
-        cipher.nonce = private_key[:12]
-        private_key = cipher.decrypt_and_verify(private_key[12:28], private_key[28:])
+        cipher.nonce = encrypted_private_key[:12]
+        private_key = cipher.decrypt_and_verify(encrypted_private_key[12:28], encrypted_private_key[28:])
 
         print("Login successful. Symmetric and private keys retrieved.")
     else:
         print("Login failed:", response.json().get('error', 'Unknown error'))
+
+    return response
 
 
 def change_password(username, old_password, new_password):

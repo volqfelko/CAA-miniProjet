@@ -15,8 +15,7 @@ def main():
         if choice == '1':
             username = input("Enter a new username: ")
             master_password = input("Enter a new master password: ")
-            user_data = create_account(username, master_password.encode('utf-8'))
-            response = requests.post('http://localhost:5000/register', json=user_data)
+            response = create_account(username, master_password.encode('utf-8'))
             if response.status_code == 200:
                 print("\n" + "*" * 30 + "\nAccount created successfully.\n" + "*" * 30)
             else:
@@ -25,7 +24,7 @@ def main():
         elif choice == '2':
             username = input("Enter your username: ")
             master_password = input("Enter your master password: ")
-            response = login(username, master_password)
+            response = login(username, master_password.encode('utf-8'))
             if response.status_code == 200:
                 print("\n" + "*" * 30 + "\nLogin successful.\n" + "*" * 30)
             else:
