@@ -1,6 +1,3 @@
-import json
-import os
-
 import requests
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256
@@ -17,6 +14,8 @@ HASH_TRUNCATION_SIZE = 16  # 128 bits
 RSA_KEY_SIZE = 2048
 CHA_CHA20_KEY_SIZE = 32  # 256 bits
 HKDF_INFO = b'client-auth'
+
+session = requests.Session()
 
 # Initialize Argon2 PasswordHasher
 ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4, hash_len=16, encoding='utf-8')
@@ -145,6 +144,7 @@ def change_password(username, old_master_password, new_master_password):
 
 def create_folder(username, folder_name, symmetric_key):
     encrypted_folder_name = encrypt_data(symmetric_key, folder_name.encode())
+
     IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_folder_name)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
@@ -152,3 +152,21 @@ def create_folder(username, folder_name, symmetric_key):
     }
     # Send encrypted folder name and folder_info_json to the server
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
+
+
+def list_directories(username):
+    response = requests.post('http://localhost:5000/list_directories', json={"username": username})
+
+    if response.status_code == 200:
+        directories = response.json()
+        print("Directories and files in your folder:")
+        print_tree(directories)
+    else:
+        print("Failed to retrieve directories")
+
+
+def print_tree(structure, indent=0):
+    for name, sub_structure in structure.items():
+        print(' ' * indent + name)
+        if isinstance(sub_structure, dict):  # It's a directory
+            print_tree(sub_structure, indent + 4)

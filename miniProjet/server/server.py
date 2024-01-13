@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
+from flask import Flask, request, jsonify, session
 import os
 import json
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'
+
 users_file = 'users.json'
 FILESYSTEM = 'filesystem'
 
@@ -58,7 +59,7 @@ def login():
                     'encrypted_symmetric_key': encrypted_symmetric_key,
                     'encrypted_private_key': encrypted_private_key
                 }
-
+                session['username'] = username
                 return jsonify(encrypted_keys), 200
 
             else:
@@ -94,6 +95,26 @@ def handle_create_folder():
     # Create new folder with encrypted name
     new_folder_path = os.path.join(FILESYSTEM, username, encrypted_folder_name)
     os.makedirs(new_folder_path, exist_ok=True)
+
+
+@app.route('/list_directories', methods=['POST'])
+def list_user_directories():
+    user_data = request.json
+    user_folder = os.path.join(FILESYSTEM, user_data['username'])
+
+    # Recursive function to get directory structure
+    def get_directory_structure(path):
+        structure = {}
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path):
+                structure[item] = get_directory_structure(item_path)
+            else:
+                structure[item] = None  # or some file information
+        return structure
+
+    directory_structure = get_directory_structure(user_folder)
+    return jsonify(directory_structure), 200
 
 
 app.run(debug=True, port=5000)
