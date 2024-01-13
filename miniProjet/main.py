@@ -1,3 +1,5 @@
+import requests
+
 from client.client import *
 
 
@@ -13,10 +15,10 @@ def main():
         if choice == '1':
             username = input("Enter a new username: ")
             master_password = input("Enter a new master password: ")
-            user_data = create_account(username, master_password)
+            user_data = create_account(username, master_password.encode('utf-8'))
             response = requests.post('http://localhost:5000/register', json=user_data)
             if response.status_code == 200:
-                print("Account created successfully.")
+                print("\n" + "*" * 30 + "\nAccount created successfully.\n" + "*" * 30)
             else:
                 print("An error occurred: " + response.json().get('error', 'Unknown error'))
 
@@ -25,7 +27,7 @@ def main():
             master_password = input("Enter your master password: ")
             response = login(username, master_password)
             if response.status_code == 200:
-                print("Login successful.")
+                print("\n" + "*" * 30 + "\nLogin successful.\n" + "*" * 30)
             else:
                 print("Login failed: " + response.json().get('error', 'Unknown error'))
 
@@ -35,7 +37,7 @@ def main():
             new_password = input("Enter your new master password: ")
             response = change_password(username, old_password, new_password)
             if response.status_code == 200:
-                print("Password changed successfully.")
+                print("\n" + "*" * 30 + "\nPassword changed successfully.\n" + "*" * 30)
             else:
                 print("Password change failed: " + response.json().get('error', 'Unknown error'))
 

@@ -28,7 +28,7 @@ def register():
     # Save new user data
     users[username] = user_data
     with open(users_file, 'w') as file:
-        json.dump(users, file)
+        json.dump(users, file, indent=2)
 
     return jsonify({"success": True}), 200
 

@@ -1,27 +1,29 @@
-from Crypto.Protocol.KDF import scrypt
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
+from Crypto.Protocol.KDF import HKDF
 from Crypto.Cipher import ChaCha20_Poly1305
-import json
+from argon2 import PasswordHasher
+
 import base64
-import requests
+
 
 # Constants for key generation and encryption
 HASH_TRUNCATION_SIZE = 16  # 128 bits
-SCRYPT_N = 16384
-SCRYPT_R = 8
-SCRYPT_P = 1
 RSA_KEY_SIZE = 2048
 CHA_CHA20_KEY_SIZE = 32  # 256 bits
+HKDF_INFO = b'client-auth'
+
+# Initialize Argon2 PasswordHasher
+ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4, hash_len=16, encoding='utf-8')
 
 
 def hash_username(username):
     return SHA256.new(username.encode()).digest()[:HASH_TRUNCATION_SIZE]
 
 
-def generate_master_key(master_password, salt):
-    return scrypt(master_password.encode(), salt, key_len=32, N=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P)
+def argon2_hash(master_password, salt):
+    return ph.hash(master_password, salt=salt)
 
 
 def encrypt_data(key, data):
@@ -33,10 +35,13 @@ def encrypt_data(key, data):
 def create_account(username, master_password):
     # Step 1-4: Generate master key with username as salt
     salt = hash_username(username)
-    master_key = generate_master_key(master_password, salt)
+    master_key = argon2_hash(master_password, salt).encode('utf-8')[-16:]
 
     # Step 5: Generate master password hash
-    master_password_hash = generate_master_key(master_password, master_key)
+    master_password_hash = argon2_hash(master_password, master_key).encode('utf-8')[-16:]
+
+    #TODO salt HKDF ????
+    stretched_master_key = HKDF(master_key, 32, salt, SHA256, context=HKDF_INFO)
 
     # Step 6: Generate RSA key pair
     rsa_key = RSA.generate(RSA_KEY_SIZE)
@@ -45,7 +50,7 @@ def create_account(username, master_password):
 
     # Step 7-8: Encrypt the symmetric key and private RSA key
     symmetric_key = get_random_bytes(CHA_CHA20_KEY_SIZE)
-    encrypted_symmetric_key = encrypt_data(master_key, symmetric_key)
+    encrypted_symmetric_key = encrypt_data(stretched_master_key, symmetric_key)
     encrypted_private_key = encrypt_data(symmetric_key, private_key)
 
     # Step 9: Prepare data to send to server
@@ -61,16 +66,41 @@ def create_account(username, master_password):
 
 
 def login(username, master_password):
-    # Login logic would be similar to account creation, but instead, we would
-    # send a login request to the server with the username and master password hash
+    # Derive the master key using the hashed username as the salt
     salt = hash_username(username)
-    master_password_hash = generate_master_key(master_password, salt)
+    master_key = argon2_hash(master_password, salt)
+
+    # Prepare the master key for encryption by ensuring it's the right size
+    encryption_master_key = master_key[:32]
+
+    # Send the hashed username and master key to the server for authentication
     login_data = {
         'username': username,
-        'master_password_hash': base64.b64encode(master_password_hash).decode()
+        'master_key': base64.b64encode(encryption_master_key).decode()
     }
+
+    # Make a request to the server's login endpoint
     response = requests.post('http://localhost:5000/login', json=login_data)
-    return response
+
+    if response.status_code == 200:
+        # If login is successful, decrypt the received keys
+        keys = response.json()
+        symmetric_key = base64.b64decode(keys['symmetric_key'])
+        private_key = base64.b64decode(keys['private_key'])
+
+        # Use the master key to decrypt the symmetric key
+        cipher = ChaCha20_Poly1305.new(key=encryption_master_key)
+        cipher.nonce = symmetric_key[:12]
+        symmetric_key = cipher.decrypt_and_verify(symmetric_key[12:28], symmetric_key[28:])
+
+        # Use the symmetric key to decrypt the private key
+        cipher = ChaCha20_Poly1305.new(key=symmetric_key)
+        cipher.nonce = private_key[:12]
+        private_key = cipher.decrypt_and_verify(private_key[12:28], private_key[28:])
+
+        print("Login successful. Symmetric and private keys retrieved.")
+    else:
+        print("Login failed:", response.json().get('error', 'Unknown error'))
 
 
 def change_password(username, old_password, new_password):
@@ -79,8 +109,8 @@ def change_password(username, old_password, new_password):
     login_response = login(username, old_password)
     if login_response.status_code == 200:
         new_salt = hash_username(username)
-        new_master_key = generate_master_key(new_password, new_salt)
-        new_master_password_hash = generate_master_key(new_password, new_master_key)
+        new_master_key = argon2_hash(new_password, new_salt)
+        new_master_password_hash = argon2_hash(new_password, new_master_key)
         update_data = {
             'username': username,
             'new_master_password_hash': base64.b64encode(new_master_password_hash).decode()
