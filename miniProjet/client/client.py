@@ -33,6 +33,14 @@ def encrypt_data(key, data):
     return base64.b64encode(cipher.nonce + tag + ciphertext).decode()
 
 
+def extract_chacha_cipher_infos(cipher):
+    IV = cipher[:12]
+    tag = cipher[12:28]
+    ciphertext = cipher[28:]
+
+    return IV, tag, ciphertext
+
+
 def create_account(username, master_password):
     # Step 1-4: Generate master key with username as salt
     salt = hash_username(username)
@@ -90,19 +98,19 @@ def login(username, master_password):
     if response.status_code == 200:
         # If login is successful, decrypt the received keys
         keys = response.json()
-        encrypted_symmetric_key = keys['encrypted_symmetric_key']
+        encrypted_symmetric_key = base64.b64decode(keys['encrypted_symmetric_key'])
         encrypted_private_key = base64.b64decode(keys['encrypted_private_key'])
 
+        IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_symmetric_key)
         # Use the master key to decrypt the symmetric key
-        cipher = ChaCha20_Poly1305.new(key=stretched_master_key)
+        cipher = ChaCha20_Poly1305.new(key=stretched_master_key, nonce=IV)
         # TODO IV ????
-        cipher.nonce = encrypted_symmetric_key[:12]
-        symmetric_key = cipher.decrypt_and_verify(encrypted_symmetric_key[12:28], encrypted_symmetric_key[28:])
+        symmetric_key = cipher.decrypt_and_verify(ciphertext, tag)
 
+        IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_private_key)
         # Use the symmetric key to decrypt the private key
-        cipher = ChaCha20_Poly1305.new(key=symmetric_key)
-        cipher.nonce = encrypted_private_key[:12]
-        private_key = cipher.decrypt_and_verify(encrypted_private_key[12:28], encrypted_private_key[28:])
+        cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
+        private_key = cipher.decrypt_and_verify(ciphertext, tag)
 
         print("Login successful. Symmetric and private keys retrieved.")
     else:
