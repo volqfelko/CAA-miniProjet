@@ -5,7 +5,7 @@ import json
 
 app = Flask(__name__)
 users_file = 'users.json'
-UPLOAD_FOLDER = 'uploads'
+FILESYSTEM = 'filesystem'
 
 
 @app.route('/register', methods=['POST'])
@@ -27,12 +27,17 @@ def register():
     if username in users:
         return jsonify({"error": "User already exists"}), 409
 
+    # Create a folder for the user
+    user_folder_path = os.path.join(FILESYSTEM, username)
+    if not os.path.exists(user_folder_path):
+        os.makedirs(user_folder_path)
+
     # Save new user data
     users[username] = user_data
     with open(users_file, 'w') as file:
         json.dump(users, file, indent=2)
 
-    return jsonify({"success": True}), 200
+    return jsonify({'success': 'User registered and personnal vault created'}), 200
 
 
 @app.route('/login', methods=['POST'])
@@ -80,39 +85,15 @@ def change_password():
     return jsonify({"error": "User not found"}), 404
 
 
-@app.route('/upload_file', methods=['POST'])
-def upload_file():
-    # Check if the user is authenticated
-    # ...
-
-    file = request.files['file']
-    filename = secure_filename(file.filename)
-    user_folder = os.path.join(UPLOAD_FOLDER, username)
-
-    if not os.path.exists(user_folder):
-        os.makedirs(user_folder)
-
-    file_path = os.path.join(user_folder, filename)
-    file.save(file_path)
-
-    # Encrypt the file after saving
-    # ...
-
-    return jsonify({'success': 'File uploaded and encrypted successfully.'}), 200
-
-
-@app.route('/download_file/<filename>', methods=['GET'])
-def download_file(filename):
-    # Check if the user is authenticated
-    # ...
-
-    user_folder = os.path.join(UPLOAD_FOLDER, username)
-    file_path = os.path.join(user_folder, filename)
-
-    # Decrypt the file before sending
-    # ...
-
-    return send_from_directory(user_folder, filename, as_attachment=True)
+@app.route('/create_folder', methods=['POST'])
+def handle_create_folder():
+    # Extract user's personal folder path
+    new_folder = request.json
+    username = new_folder['username']
+    encrypted_folder_name = new_folder['encrypted_folder_name']
+    # Create new folder with encrypted name
+    new_folder_path = os.path.join(FILESYSTEM, username, encrypted_folder_name)
+    os.makedirs(new_folder_path, exist_ok=True)
 
 
 app.run(debug=True, port=5000)

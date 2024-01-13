@@ -1,3 +1,6 @@
+import json
+import os
+
 import requests
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256
@@ -113,16 +116,16 @@ def login(username, master_password):
         private_key = cipher.decrypt_and_verify(ciphertext, tag)
 
         print("Login successful. Symmetric and private keys retrieved.")
+        return response, symmetric_key, private_key
     else:
         print("Login failed:", response.json().get('error', 'Unknown error'))
-
-    return response
+        return response, None, None
 
 
 def change_password(username, old_master_password, new_master_password):
     # To change the password, the user must first log in with the old password
     # If login is successful, proceed to update the user's credentials with the new password
-    login_response = login(username, old_master_password)
+    login_response, symmetric_key, private_key = login(username, old_master_password)
     if login_response.status_code == 200:
         salt = hash_username(username)
         new_master_key = argon2_hash(new_master_password, salt).encode('utf-8')[-16:]
@@ -134,17 +137,18 @@ def change_password(username, old_master_password, new_master_password):
             'username': username,
             'new_master_password_hash': base64.b64encode(new_master_password_hash).decode()
         }
-        response = requests.post('http://localhost:5000/change_password', json=update_data)
-        return response
+
+        return requests.post('http://localhost:5000/change_password', json=update_data)
     else:
         return login_response
 
 
-def upload_file(server_url, username, symmetric_key, file_path):
-    with open(file_path, 'rb') as file:
-        # Encrypt the file locally before uploading
-        # ...
-
-        files = {'file': (os.path.basename(file_path), encrypted_content)}
-        response = requests.post(f'{server_url}/upload_file', files=files)
-        return response.json()
+def create_folder(username, folder_name, symmetric_key):
+    encrypted_folder_name = encrypt_data(symmetric_key, folder_name.encode())
+    IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_folder_name)
+    new_folder = {
+        'encrypted_folder_name': encrypted_folder_name,
+        'username': username
+    }
+    # Send encrypted folder name and folder_info_json to the server
+    return requests.post('http://localhost:5000/create_folder', json=new_folder)
