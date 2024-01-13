@@ -8,8 +8,7 @@ def main():
         print("\nWelcome to the Encrypted File System")
         print("1. Register")
         print("2. Login")
-        print("3. Change Password")
-        print("4. Exit")
+        print("3. Exit")
         choice = input("Choose an option: ")
 
         if choice == '1':
@@ -27,20 +26,30 @@ def main():
             response = login(username, master_password.encode('utf-8'))
             if response.status_code == 200:
                 print("\n" + "*" * 30 + "\nLogin successful.\n" + "*" * 30)
+                while True:
+                    print("\nWelcome " + str(username))
+                    print("1. Upload File")
+                    print("2. Change Password")
+                    print("3. Exit")
+                    choice = input("Choose an option: ")
+
+                    if choice == '2':
+                        username = input("Enter your username: ")
+                        old_password = input("Enter your old master password: ")
+                        new_password = input("Enter your new master password: ")
+                        response = change_password(username, old_password, new_password)
+                        if response.status_code == 200:
+                            print("\n" + "*" * 30 + "\nPassword changed successfully.\n" + "*" * 30)
+                        else:
+                            print("Password change failed: " + response.json().get('error', 'Unknown error'))
+
+                    elif choice == '3':
+                        print("Exiting the application.")
+                        return
             else:
                 print("Login failed: " + response.json().get('error', 'Unknown error'))
 
         elif choice == '3':
-            username = input("Enter your username: ")
-            old_password = input("Enter your old master password: ")
-            new_password = input("Enter your new master password: ")
-            response = change_password(username, old_password, new_password)
-            if response.status_code == 200:
-                print("\n" + "*" * 30 + "\nPassword changed successfully.\n" + "*" * 30)
-            else:
-                print("Password change failed: " + response.json().get('error', 'Unknown error'))
-
-        elif choice == '4':
             print("Exiting the application.")
             break
 

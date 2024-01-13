@@ -139,3 +139,12 @@ def change_password(username, old_master_password, new_master_password):
     else:
         return login_response
 
+
+def upload_file(server_url, username, symmetric_key, file_path):
+    with open(file_path, 'rb') as file:
+        # Encrypt the file locally before uploading
+        # ...
+
+        files = {'file': (os.path.basename(file_path), encrypted_content)}
+        response = requests.post(f'{server_url}/upload_file', files=files)
+        return response.json()

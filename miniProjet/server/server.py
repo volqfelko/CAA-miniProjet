@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
 import os
 import json
 
 app = Flask(__name__)
 users_file = 'users.json'
+UPLOAD_FOLDER = 'uploads'
 
 
 @app.route('/register', methods=['POST'])
@@ -76,6 +78,41 @@ def change_password():
                 file.truncate()
                 return jsonify({"success": True}), 200
     return jsonify({"error": "User not found"}), 404
+
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    # Check if the user is authenticated
+    # ...
+
+    file = request.files['file']
+    filename = secure_filename(file.filename)
+    user_folder = os.path.join(UPLOAD_FOLDER, username)
+
+    if not os.path.exists(user_folder):
+        os.makedirs(user_folder)
+
+    file_path = os.path.join(user_folder, filename)
+    file.save(file_path)
+
+    # Encrypt the file after saving
+    # ...
+
+    return jsonify({'success': 'File uploaded and encrypted successfully.'}), 200
+
+
+@app.route('/download_file/<filename>', methods=['GET'])
+def download_file(filename):
+    # Check if the user is authenticated
+    # ...
+
+    user_folder = os.path.join(UPLOAD_FOLDER, username)
+    file_path = os.path.join(user_folder, filename)
+
+    # Decrypt the file before sending
+    # ...
+
+    return send_from_directory(user_folder, filename, as_attachment=True)
 
 
 app.run(debug=True, port=5000)
