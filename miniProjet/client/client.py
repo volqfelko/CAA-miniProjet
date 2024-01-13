@@ -32,7 +32,7 @@ def argon2_hash(master_password, salt):
 def encrypt_data(key, data):
     cipher = ChaCha20_Poly1305.new(key=key)
     ciphertext, tag = cipher.encrypt_and_digest(data)
-    return base64.b64encode(cipher.nonce + tag + ciphertext).decode()
+    return base64.urlsafe_b64encode(cipher.nonce + tag + ciphertext).decode()
 
 
 def extract_chacha_cipher_infos(cipher):
@@ -67,9 +67,9 @@ def create_account(username, master_password):
     # Step 9: Prepare data to send to server
     user_data = {
         'username': username,
-        'master_password_hash': base64.b64encode(master_password_hash).decode(),
+        'master_password_hash': base64.urlsafe_b64encode(master_password_hash).decode(),
         'encrypted_symmetric_key': encrypted_symmetric_key,
-        'public_key': base64.b64encode(public_key).decode(),
+        'public_key': base64.urlsafe_b64encode(public_key).decode(),
         'encrypted_private_key': encrypted_private_key
     }
 
@@ -91,7 +91,7 @@ def login(username, master_password):
     # Send the hashed username and master key to the server for authentication
     login_data = {
         'username': username,
-        'master_password_hash': base64.b64encode(master_password_hash).decode()
+        'master_password_hash': base64.urlsafe_b64encode(master_password_hash).decode()
     }
 
     # Make a request to the server's login endpoint
@@ -100,8 +100,8 @@ def login(username, master_password):
     if response.status_code == 200:
         # If login is successful, decrypt the received keys
         keys = response.json()
-        encrypted_symmetric_key = base64.b64decode(keys['encrypted_symmetric_key'])
-        encrypted_private_key = base64.b64decode(keys['encrypted_private_key'])
+        encrypted_symmetric_key = base64.urlsafe_b64decode(keys['encrypted_symmetric_key'])
+        encrypted_private_key = base64.urlsafe_b64decode(keys['encrypted_private_key'])
 
         IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_symmetric_key)
         # Use the master key to decrypt the symmetric key
@@ -134,7 +134,7 @@ def change_password(username, old_master_password, new_master_password):
         # TODO UPDATE ALL NEW KEYS IN DB
         update_data = {
             'username': username,
-            'new_master_password_hash': base64.b64encode(new_master_password_hash).decode()
+            'new_master_password_hash': base64.urlsafe_b64encode(new_master_password_hash).decode()
         }
 
         return requests.post('http://localhost:5000/change_password', json=update_data)
@@ -142,31 +142,30 @@ def change_password(username, old_master_password, new_master_password):
         return login_response
 
 
-def create_folder(username, folder_name, symmetric_key):
+def create_folder(folder_name, symmetric_key):
     encrypted_folder_name = encrypt_data(symmetric_key, folder_name.encode())
 
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
-        'username': username
     }
     # Send encrypted folder name and folder_info_json to the server
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
-def list_directories(username, symmetric_key):
-    response = requests.post('http://localhost:5000/list_directories', json={"username": username})
+def list_directories(symmetric_key):
+    response = requests.post('http://localhost:5000/list_directories')
 
     if response.status_code == 200:
         directories = response.json()
         print("\nDirectories and files in your vault:")
-        print_tree(directories,symmetric_key)
+        print_tree(directories, symmetric_key)
     else:
         print("Failed to retrieve directories")
 
 
 def print_tree(structure, symmetric_key, indent=0):
     for name, sub_structure in structure.items():
-        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.b64decode(name))
+        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(name))
         cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
 
         decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
