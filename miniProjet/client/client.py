@@ -145,7 +145,6 @@ def change_password(username, old_master_password, new_master_password):
 def create_folder(username, folder_name, symmetric_key):
     encrypted_folder_name = encrypt_data(symmetric_key, folder_name.encode())
 
-    IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_folder_name)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
         'username': username
@@ -154,19 +153,23 @@ def create_folder(username, folder_name, symmetric_key):
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
-def list_directories(username):
+def list_directories(username, symmetric_key):
     response = requests.post('http://localhost:5000/list_directories', json={"username": username})
 
     if response.status_code == 200:
         directories = response.json()
-        print("Directories and files in your folder:")
-        print_tree(directories)
+        print("\nDirectories and files in your vault:")
+        print_tree(directories,symmetric_key)
     else:
         print("Failed to retrieve directories")
 
 
-def print_tree(structure, indent=0):
+def print_tree(structure, symmetric_key, indent=0):
     for name, sub_structure in structure.items():
-        print(' ' * indent + name)
+        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.b64decode(name))
+        cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
+
+        decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
+        print(' ' * indent + decrypted_name)
         if isinstance(sub_structure, dict):  # It's a directory
-            print_tree(sub_structure, indent + 4)
+            print_tree(sub_structure, symmetric_key, indent + 4)

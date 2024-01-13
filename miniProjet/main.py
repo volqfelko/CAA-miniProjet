@@ -42,8 +42,11 @@ def main():
                             print("Folder creation failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '3':
-                        list_directories(username)
-                        return
+                        if response.status_code == 200:
+                            list_directories(username, symmetric_key)
+                        else:
+                            print("File listing failed: " + response.json().get('error', 'Unknown error'))
+
                     elif choice == '4':
                         username = input("Enter your username: ")
                         old_password = input("Enter your old master password: ")
