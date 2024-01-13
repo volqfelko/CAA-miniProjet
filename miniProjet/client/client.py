@@ -104,7 +104,7 @@ def login(username, master_password):
         IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_symmetric_key)
         # Use the master key to decrypt the symmetric key
         cipher = ChaCha20_Poly1305.new(key=stretched_master_key, nonce=IV)
-        # TODO IV ????
+
         symmetric_key = cipher.decrypt_and_verify(ciphertext, tag)
 
         IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_private_key)
@@ -119,14 +119,17 @@ def login(username, master_password):
     return response
 
 
-def change_password(username, old_password, new_password):
+def change_password(username, old_master_password, new_master_password):
     # To change the password, the user must first log in with the old password
     # If login is successful, proceed to update the user's credentials with the new password
-    login_response = login(username, old_password)
+    login_response = login(username, old_master_password)
     if login_response.status_code == 200:
-        new_salt = hash_username(username)
-        new_master_key = argon2_hash(new_password, new_salt)
-        new_master_password_hash = argon2_hash(new_password, new_master_key)
+        salt = hash_username(username)
+        new_master_key = argon2_hash(new_master_password, salt).encode('utf-8')[-16:]
+
+        # Prepare the master key for encryption by ensuring it's the right size
+        new_master_password_hash = argon2_hash(new_master_password, new_master_key).encode('utf-8')[-16:]
+        # TODO UPDATE ALL NEW KEYS IN DB
         update_data = {
             'username': username,
             'new_master_password_hash': base64.b64encode(new_master_password_hash).decode()
