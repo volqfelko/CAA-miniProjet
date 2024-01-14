@@ -47,12 +47,8 @@ def main():
                             print("\n" + "File upload failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '2':
-                        file_name = input("Enter folder name to create: ")
-                        download_file(file_name)
-                        if response.status_code == 200:
-                            print("\n" + "*" * 30 + "\nFile " + str(file_name) + " downloaded.\n" + "*" * 30)
-                        else:
-                            print("\n" + "Folder creation failed: " + response.json().get('error', 'Unknown error'))
+                        file_name = input("Enter a file name to download: ")
+                        print(download_file(file_name))
 
                     elif choice == '3':
                         folder_name = input("Enter folder name to create: ")

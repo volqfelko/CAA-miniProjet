@@ -1,3 +1,5 @@
+import os
+
 import requests
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256
@@ -164,17 +166,29 @@ def upload_file(file_path):
 
 
 def download_file(file_name):
+    destination_path = os.getcwd() + "/client/downloads/"
     try:
         encrypted_file_name = find_directory_name(client_index.index, file_name, 'file')
+
         if encrypted_file_name is None:
-            print("file not found")
-            return
+            return "file not found"
+
         response = requests.get('http://localhost:5000/download_file', params={'encrypted_file_name': encrypted_file_name}, stream=True)
         response.raise_for_status()
 
-        with open(file_name, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+        encrypted_content = b''
+        for chunk in response.iter_content(chunk_size=8192):
+            encrypted_content += chunk
+
+        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(encrypted_content))
+        # Use the symmetric key to decrypt the private key
+        cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
+        decrypted_content = cipher.decrypt_and_verify(ciphertext, tag)
+
+        # Write the decrypted content to a file
+        full_path = os.path.join(destination_path, file_name)
+        with open(full_path, 'wb') as f:
+            f.write(decrypted_content)
 
         return "File downloaded successfully."
     except requests.exceptions.HTTPError as errh:
