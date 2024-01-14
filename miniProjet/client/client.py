@@ -166,22 +166,22 @@ def get_files_list():
     if response.status_code == 200:
         directories = response.json()
         print("\nDirectories and files in your vault:")
-        print_tree(directories, client_index.symmetric_key)
+        print_tree(directories)
     else:
         print("Failed to retrieve directories")
 
 
-def print_tree(structure, symmetric_key, indent=0):
+def print_tree(structure, indent=0):
     for entry in structure:
         folder_name = entry[1]
         IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(folder_name))
-        cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
+        cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
 
         decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
         entry[0] = decrypted_name
         print(' ' * indent + decrypted_name)
         if len(entry) == 3:  # It's a directory
-            print_tree(entry[2], symmetric_key, indent + 4)
+            print_tree(entry[2], indent + 4)
 
     client_index.index = structure
 
@@ -197,7 +197,7 @@ def change_current_directory(new_curr_directory):
     if response.status_code == 200:
         directories = response.json()
         print("\nDirectories and files in your vault:")
-        print_tree(directories, client_index.symmetric_key)
+        print_tree(directories)
     else:
         print("Failed to retrieve directories")
 
