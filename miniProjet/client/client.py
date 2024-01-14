@@ -149,9 +149,17 @@ def change_password(username, old_master_password, new_master_password):
 
 
 def upload_file(file_path):
-    with open(file_path, 'rb') as f:
-        files = {'file': (file_path, f)}
-        response = requests.post('http://localhost:5000/file_upload', files=files)
+    with open(file_path, 'rb') as file:
+        original = file.read()
+    encrypted_file = encrypt_data(client_index.symmetric_key, original)
+
+    file_name = file_path.split('\\')[-1]
+    encrypted_file_name = encrypt_data(client_index.symmetric_key, file_name.encode())
+    files = {'file': (encrypted_file_name, encrypted_file)}
+
+    # Send the encrypted file to the server
+    response = requests.post('http://localhost:5000/file_upload', files=files)
+
     return response
 
 
