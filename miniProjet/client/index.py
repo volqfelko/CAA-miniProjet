@@ -13,8 +13,7 @@ class ClientIndex:
     def get_encrypted_folder_name(self, folder_name):
         return self.index.get(folder_name)
 
-    """
-    # Function to save the index to a file (encrypted)
+    """    # Function to save the index to a file (encrypted)
     def save_index(self, filename):
         with open(filename, 'wb') as file:
             encrypted_index = encrypt_data(self.key, json.dumps(self.index))
