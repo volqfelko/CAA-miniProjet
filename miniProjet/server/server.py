@@ -108,13 +108,22 @@ def handle_create_folder():
 def list_user_directories():
     # Recursive function to get directory structure
     def get_directory_structure(path):
-        structure = {}
+        structure = []
         for item in os.listdir(path):
-            item_path = os.path.join(path, item)
-            if os.path.isdir(item_path):
-                structure[item] = get_directory_structure(item_path)
-            else:
-                structure[item] = None  # or some file information
+            full_path = os.path.join(path, item)
+            if os.path.isdir(full_path):
+                # Recursive call for subfolders
+                subfolders = get_directory_structure(full_path)
+
+                # 'Decrypted name' is a placeholder string "name"
+                decrypted_name = ""
+
+                # Add tuple with or without subfolders list based on its presence
+                if subfolders:
+                    structure.append((decrypted_name, item, subfolders))
+                else:
+                    structure.append((decrypted_name, item))
+
         return structure
 
     directory_structure = get_directory_structure(FILESYSTEM)

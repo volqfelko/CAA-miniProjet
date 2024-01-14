@@ -44,7 +44,7 @@ def main():
 
                     elif choice == '3':
                         if response.status_code == 200:
-                            list_directories()
+                            get_files_list()
                         else:
                             print("File listing failed: " + response.json().get('error', 'Unknown error'))
 

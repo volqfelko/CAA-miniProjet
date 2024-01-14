@@ -119,6 +119,9 @@ def login(username, master_password):
         client_index.symmetric_key = symmetric_key
         client_index.private_key = private_key
 
+        #Decrypt everything in vault first login and populate client_index
+        get_files_list()
+        print(client_index.index)
         print("Login successful. Symmetric and private keys retrieved.")
         return response
     else:
@@ -158,7 +161,7 @@ def create_folder(folder_name):
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
-def list_directories():
+def get_files_list():
     response = requests.post('http://localhost:5000/list_directories')
     if response.status_code == 200:
         directories = response.json()
@@ -169,14 +172,18 @@ def list_directories():
 
 
 def print_tree(structure, symmetric_key, indent=0):
-    for name, sub_structure in structure.items():
-        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(name))
+    for entry in structure:
+        folder_name = entry[1]
+        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(folder_name))
         cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
 
         decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
+        entry[0] = decrypted_name
         print(' ' * indent + decrypted_name)
-        if isinstance(sub_structure, dict):  # It's a directory
-            print_tree(sub_structure, symmetric_key, indent + 4)
+        if len(entry) == 3:  # It's a directory
+            print_tree(entry[2], symmetric_key, indent + 4)
+
+    client_index.index = structure
 
 
 def change_current_directory(new_curr_directory):
@@ -193,3 +200,4 @@ def change_current_directory(new_curr_directory):
         print_tree(directories, client_index.symmetric_key)
     else:
         print("Failed to retrieve directories")
+
