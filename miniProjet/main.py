@@ -28,6 +28,7 @@ def main():
                                         "\n" + "*" * 30)
                 while True:
                     print("\nWelcome " + str(username) + "\n")
+                    get_curr_dir()
                     print("1. Upload File")
                     print("2. Create folder")
                     print("3. List directories")
@@ -36,7 +37,15 @@ def main():
                     print("6. Exit")
                     choice = input("\n" + "Choose an option: ")
 
-                    if choice == '2':
+                    if choice == '1':
+                        file_path = input("Enter file path to upload: ")
+                        response = upload_file(file_path)
+                        if response.status_code == 200:
+                            print("\n" + "*" * 30 + "\nFile " + str(file_path) + " uploaded.\n" + "*" * 30)
+                        else:
+                            print("\n" + "File upload failed: " + response.json().get('error', 'Unknown error'))
+
+                    elif choice == '2':
                         folder_name = input("Enter folder name to create: ")
                         create_folder(folder_name)
                         if response.status_code == 200:

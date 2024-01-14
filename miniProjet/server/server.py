@@ -1,8 +1,8 @@
-import base64
-
 from flask import Flask, request, jsonify
 import os
 import json
+
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -13,6 +13,12 @@ FILESYSTEM = 'filesystem'
 def update_curr_dir(new_dir):
     global FILESYSTEM
     FILESYSTEM = os.path.join(FILESYSTEM, new_dir)
+
+
+@app.route('/get_curr_dir', methods=['GET'])
+def get_curr_dir():
+    truncated_path = FILESYSTEM.split('\\')[-1]
+    return jsonify({"curr_dir": truncated_path}), 200
 
 
 @app.route('/register', methods=['POST'])
@@ -90,6 +96,25 @@ def change_password():
                 file.truncate()
                 return jsonify({"success": True}), 200
     return jsonify({"error": "User not found"}), 404
+
+
+@app.route('/file_upload', methods=['POST'])
+def file_upload():
+    # Check if a file is part of the request
+    if 'file' not in request.files:
+        return "No file part in the request", 400
+
+    file = request.files['file']
+
+    # If the user does not select a file
+    if file.filename == '':
+        return "No file selected", 400
+
+    # Save the file
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(FILESYSTEM, filename))
+
+    return "File uploaded successfully", 200
 
 
 @app.route('/create_folder', methods=['POST'])

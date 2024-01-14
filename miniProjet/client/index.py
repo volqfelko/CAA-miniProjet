@@ -3,7 +3,7 @@ class ClientIndex:
     def __init__(self, symmetric_key, private_key):
         self.symmetric_key = symmetric_key
         self.private_key = private_key
-        self.index = {}  # This will store the mapping of plaintext names to encrypted names
+        self.index = []  # This will store the mapping of plaintext names to encrypted names
 
     # Function to add a folder to the index
     def add_folder(self, plain_folder_name, encrypted_folder_name):

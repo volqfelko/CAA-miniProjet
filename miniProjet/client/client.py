@@ -148,10 +148,17 @@ def change_password(username, old_master_password, new_master_password):
         return login_response
 
 
+def upload_file(file_path):
+    with open(file_path, 'rb') as f:
+        files = {'file': (file_path, f)}
+        response = requests.post('http://localhost:5000/file_upload', files=files)
+    return response
+
+
 def create_folder(folder_name):
+    response = requests.get('http://localhost:5000/get_curr_dir')
     encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())
     #client_index.add_folder(folder_name, encrypted_folder_name)
-    print(client_index.index)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
     }
@@ -213,7 +220,7 @@ def change_current_directory(new_curr_directory):
 
 def find_directory_name(directory_structure, directory_name):
     for entry in directory_structure:
-        folder_name = entry[0]  # Assuming folder name is the second element
+        folder_name = entry[0]
         if folder_name == directory_name:
             return entry[1]  # Return the associated decrypted name
 
@@ -224,3 +231,13 @@ def find_directory_name(directory_structure, directory_name):
                 return found
 
     return None  # Return None if the directory is not found
+
+
+def get_curr_dir():
+    response = requests.get('http://localhost:5000/get_curr_dir')
+    datas = response.json()
+    #TODO PRINT DECRYPTED CURRENT DIRECTORY TO RETRIEVE IN LIST INDEX
+    if response.status_code == 200:
+        print("Current directory: " + str(datas['curr_dir'] + "\n"))
+    else:
+        return None
