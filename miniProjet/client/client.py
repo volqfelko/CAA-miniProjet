@@ -8,6 +8,7 @@ from argon2 import PasswordHasher
 
 import base64
 
+from client.index import ClientIndex
 
 # Constants for key generation and encryption
 HASH_TRUNCATION_SIZE = 16  # 128 bits
@@ -15,7 +16,7 @@ RSA_KEY_SIZE = 2048
 CHA_CHA20_KEY_SIZE = 32  # 256 bits
 HKDF_INFO = b'client-auth'
 
-session = requests.Session()
+client_index = ClientIndex(None, None)
 
 # Initialize Argon2 PasswordHasher
 ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4, hash_len=16, encoding='utf-8')
@@ -79,6 +80,7 @@ def create_account(username, master_password):
 
 
 def login(username, master_password):
+    global client_index
     # Derive the master key using the hashed username as the salt
     salt = hash_username(username)
     master_key = argon2_hash(master_password, salt).encode('utf-8')[-16:]
@@ -114,11 +116,14 @@ def login(username, master_password):
         cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
         private_key = cipher.decrypt_and_verify(ciphertext, tag)
 
+        client_index.symmetric_key = symmetric_key
+        client_index.private_key = private_key
+
         print("Login successful. Symmetric and private keys retrieved.")
-        return response, symmetric_key, private_key
+        return response
     else:
         print("Login failed:", response.json().get('error', 'Unknown error'))
-        return response, None, None
+        return response
 
 
 def change_password(username, old_master_password, new_master_password):
@@ -142,9 +147,10 @@ def change_password(username, old_master_password, new_master_password):
         return login_response
 
 
-def create_folder(folder_name, symmetric_key):
-    encrypted_folder_name = encrypt_data(symmetric_key, folder_name.encode())
-
+def create_folder(folder_name):
+    encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())
+    client_index.add_folder(folder_name, encrypted_folder_name)
+    print(client_index.index)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
     }
@@ -152,13 +158,12 @@ def create_folder(folder_name, symmetric_key):
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
-def list_directories(symmetric_key):
+def list_directories():
     response = requests.post('http://localhost:5000/list_directories')
-
     if response.status_code == 200:
         directories = response.json()
         print("\nDirectories and files in your vault:")
-        print_tree(directories, symmetric_key)
+        print_tree(directories, client_index.symmetric_key)
     else:
         print("Failed to retrieve directories")
 
@@ -172,3 +177,19 @@ def print_tree(structure, symmetric_key, indent=0):
         print(' ' * indent + decrypted_name)
         if isinstance(sub_structure, dict):  # It's a directory
             print_tree(sub_structure, symmetric_key, indent + 4)
+
+
+def change_current_directory(new_curr_directory):
+    encrypted_folder_name = encrypt_data(client_index.symmetric_key, new_curr_directory.encode())
+
+    encrypted_new_curr_directory = {
+        'encrypted_new_curr_directory': encrypted_folder_name,
+    }
+    response = requests.post('http://localhost:5000/change_directory', json=encrypted_new_curr_directory)
+
+    if response.status_code == 200:
+        directories = response.json()
+        print("\nDirectories and files in your vault:")
+        print_tree(directories, client_index.symmetric_key)
+    else:
+        print("Failed to retrieve directories")

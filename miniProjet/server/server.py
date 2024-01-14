@@ -1,6 +1,6 @@
 import base64
 
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 import os
 import json
 
@@ -119,6 +119,23 @@ def list_user_directories():
 
     directory_structure = get_directory_structure(FILESYSTEM)
     return jsonify(directory_structure), 200
+
+
+@app.route('/change_directory', methods=['POST'])
+def change_current_directory():
+    request_data = request.json
+    new_curr_directory = request_data['encrypted_new_curr_directory']
+
+    # Check if the new directory exists
+    if not os.path.exists(new_curr_directory):
+        return jsonify({"error": "Directory does not exist"}), 404
+
+    try:
+        # Change the current working directory
+        update_curr_dir(new_curr_directory)
+        return jsonify({"success": True, "current_directory": new_curr_directory}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 app.run(debug=True, port=5000)

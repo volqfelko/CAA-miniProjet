@@ -21,7 +21,7 @@ def main():
         elif choice == '2':
             username = input("Enter your username: ")
             master_password = input("Enter your master password: ")
-            response, symmetric_key, private_key = login(username, master_password.encode('utf-8'))
+            response = login(username, master_password.encode('utf-8'))
             if response.status_code == 200:
                 print("\n" + "*" * 30 + "\nLogin successful.\n" + "*" * 30)
                 while True:
@@ -36,7 +36,7 @@ def main():
 
                     if choice == '2':
                         folder_name = input("Enter folder name to create: ")
-                        create_folder(folder_name, symmetric_key)
+                        create_folder(folder_name)
                         if response.status_code == 200:
                             print("\n" + "*" * 30 + "\nFolder " + str(folder_name) + " created.\n" + "*" * 30)
                         else:
@@ -44,13 +44,14 @@ def main():
 
                     elif choice == '3':
                         if response.status_code == 200:
-                            list_directories(symmetric_key)
+                            list_directories()
                         else:
                             print("File listing failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '4':
                         if response.status_code == 200:
-                            list_directories(symmetric_key)
+                            choice = input("wich directory do you want to move to ? ")
+                            change_current_directory(choice)
                         else:
                             print("Directory moving failed: " + response.json().get('error', 'Unknown error'))
 
