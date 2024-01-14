@@ -95,7 +95,7 @@ def change_password():
                 users[username]['encrypted_symmetric_key'] = new_protected_symmetric_key
                 users[username]['encrypted_private_key'] = new_protected_private_key
                 file.seek(0)
-                file.write(json.dumps(users))
+                file.write(json.dumps(users, indent=2))
                 file.truncate()
                 return jsonify({"success": True}), 200
     return jsonify({"error": "User not found"}), 404
