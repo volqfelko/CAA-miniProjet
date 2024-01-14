@@ -125,7 +125,6 @@ def login(username, master_password):
         get_files_list()
         return response
     else:
-        print("Login failed:", response.json().get('error', 'Unknown error'))
         return response
 
 
@@ -170,7 +169,7 @@ def upload_file(file_path):
 def download_file(file_name):
     destination_path = os.getcwd() + "/client/downloads/"
     try:
-        encrypted_file_name = find_directory_name(client_index.index, file_name, 'file')
+        encrypted_file_name = find_encrypted_directory_name(client_index.index, file_name, 'file')
 
         if encrypted_file_name is None:
             return "file not found"
@@ -251,7 +250,7 @@ def print_tree_structure(directory_structure, indent_level=0):
 
 
 def change_current_directory(new_curr_directory):
-    encrypted_folder_name = find_directory_name(client_index.index, new_curr_directory, 'directory')
+    encrypted_folder_name = find_encrypted_directory_name(client_index.index, new_curr_directory, 'directory')
     if encrypted_folder_name is None:
         print("Directory not found")
         return
@@ -267,15 +266,30 @@ def change_current_directory(new_curr_directory):
         print("Failed to change directory")
 
 
-def find_directory_name(directory_structure, name, file_type):
+def find_encrypted_directory_name(directory_structure, encrypted_name, file_type):
     for entry in directory_structure:
         entry_name = entry[1]
-        if entry_name == name and entry[0] == file_type:
+        if entry_name == encrypted_name and entry[0] == file_type:
             return entry[2]  # Return the associated decrypted name
 
         # If there are subfolders, recursively search them
         if len(entry) == 4:  # Check if there is a subfolder list in the entry
-            found = find_directory_name(entry[3], name, file_type)
+            found = find_encrypted_directory_name(entry[3], encrypted_name, file_type)
+            if found is not None:
+                return found
+
+    return None  # Return None if the directory is not found
+
+
+def find_decrypted_directory_name(directory_structure, decrypted_name, file_type):
+    for entry in directory_structure:
+        entry_name = entry[2]
+        if entry_name == decrypted_name and entry[0] == file_type:
+            return entry[1]  # Return the associated decrypted name
+
+        # If there are subfolders, recursively search them
+        if len(entry) == 4:  # Check if there is a subfolder list in the entry
+            found = find_decrypted_directory_name(entry[3], decrypted_name, file_type)
             if found is not None:
                 return found
 
@@ -285,8 +299,13 @@ def find_directory_name(directory_structure, name, file_type):
 def get_curr_dir():
     response = requests.get('http://localhost:5000/get_curr_dir')
     datas = response.json()
-    #TODO PRINT DECRYPTED CURRENT DIRECTORY TO RETRIEVE IN LIST INDEX
     if response.status_code == 200:
+        new_dir = find_decrypted_directory_name(client_index.index, datas['curr_dir'], 'directory')
+        if new_dir is not None:
+            print("Current directory: " + str(new_dir) + "\n")
+            return
+        #TODO PRINT DECRYPTED CURRENT DIRECTORY TO RETRIEVE IN LIST INDEX
+
         print("Current directory: " + str(datas['curr_dir'] + "\n"))
     else:
         return None
