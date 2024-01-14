@@ -166,6 +166,7 @@ def upload_file(file_path):
 def create_folder(folder_name):
     response = requests.get('http://localhost:5000/get_curr_dir')
     encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())
+    # TODO UPDATE CLIENT INDEX AT EACH FOLDER CREATION
     #client_index.add_folder(folder_name, encrypted_folder_name)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
@@ -185,14 +186,14 @@ def get_files_list():
 
 def decrypt_all_files_and_complete_list(structure):
     for entry in structure:
-        folder_name = entry[1]
+        folder_name = entry[2]
         IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(folder_name))
         cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
 
         decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
-        entry[0] = decrypted_name
-        if len(entry) == 3:  # It's a directory
-            decrypt_all_files_and_complete_list(entry[2])
+        entry[1] = decrypted_name
+        if entry[0] == 'directory' and len(entry) > 3:  # It's a directory
+            decrypt_all_files_and_complete_list(entry[3])
 
     client_index.index = structure
 
@@ -201,12 +202,12 @@ def print_tree_structure(directory_structure, indent_level=0):
     indent = '    ' * indent_level  # 4 spaces per indentation level
     for entry in directory_structure:
         # Print the folder name
-        folder_name = entry[0]
+        folder_name = entry[1]
         print(f"{indent}{folder_name}")
 
         # If there are subfolders, recursively print them with increased indentation
-        if len(entry) == 3:  # Check if there is a subfolder list in the entry
-            print_tree_structure(entry[2], indent_level + 1)
+        if len(entry) > 3:  # Check if there is a subfolder list in the entry
+            print_tree_structure(entry[3], indent_level + 1)
 
 
 def change_current_directory(new_curr_directory):

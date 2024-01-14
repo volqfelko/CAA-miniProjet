@@ -131,7 +131,7 @@ def handle_create_folder():
 
 @app.route('/list_directories', methods=['POST'])
 def list_user_directories():
-    # Recursive function to get directory structure
+    # Recursive function to get directory and file structure
     def get_directory_structure(path):
         structure = []
         for item in os.listdir(path):
@@ -145,9 +145,13 @@ def list_user_directories():
 
                 # Add tuple with or without subfolders list based on its presence
                 if subfolders:
-                    structure.append((decrypted_name, item, subfolders))
+                    structure.append(('directory', decrypted_name, item, subfolders))
                 else:
-                    structure.append((decrypted_name, item))
+                    structure.append(('directory', decrypted_name, item))
+            else:
+                # Handle files
+                decrypted_name = ""  # Replace with actual decrypted name if necessary
+                structure.append(('file', decrypted_name, item))
 
         return structure
 
