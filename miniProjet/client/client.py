@@ -1,49 +1,13 @@
 import os
-
 import requests
 from Crypto.Random import get_random_bytes
-from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Protocol.KDF import HKDF
-from Crypto.Cipher import ChaCha20_Poly1305
-from argon2 import PasswordHasher
 
-import base64
-
-from client.index import ClientIndex
-
-# Constants for key generation and encryption
-HASH_TRUNCATION_SIZE = 16  # 128 bits
-RSA_KEY_SIZE = 2048
-CHA_CHA20_KEY_SIZE = 32  # 256 bits
-HKDF_INFO = b'client-auth'
+from client.crypto import *
+from client.index import ClientIndex, find_encrypted_directory_name, find_decrypted_directory_name
 
 client_index = ClientIndex(None, None)
-
-# Initialize Argon2 PasswordHasher
-ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4, hash_len=16, encoding='utf-8')
-
-
-def hash_username(username):
-    return SHA256.new(username.encode()).digest()[:HASH_TRUNCATION_SIZE]
-
-
-def argon2_hash(master_password, salt):
-    return ph.hash(master_password, salt=salt)
-
-
-def encrypt_data(key, data):
-    cipher = ChaCha20_Poly1305.new(key=key)
-    ciphertext, tag = cipher.encrypt_and_digest(data)
-    return base64.urlsafe_b64encode(cipher.nonce + tag + ciphertext).decode()
-
-
-def extract_chacha_cipher_infos(cipher):
-    IV = cipher[:12]
-    tag = cipher[12:28]
-    ciphertext = cipher[28:]
-
-    return IV, tag, ciphertext
 
 
 def create_account(username, master_password):
@@ -140,7 +104,7 @@ def change_password(username, new_master_password):
     # Encrypt symmetric and private keys with new stretched master key
     new_protected_symmetric_key = encrypt_data(new_stretched_master_key, client_index.symmetric_key)
     new_protected_private_key = encrypt_data(client_index.symmetric_key, client_index.private_key)
-    # TODO UPDATE ALL NEW KEYS IN DB
+
     update_data = {
         'username': username,
         'new_master_password_hash': base64.urlsafe_b64encode(new_master_password_hash).decode(),
@@ -181,7 +145,10 @@ def download_file(file_name):
         for chunk in response.iter_content(chunk_size=8192):
             encrypted_content += chunk
 
-        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(encrypted_content))
+        encrypted_content_b64 = encrypted_content.decode('utf-8')
+        padded_encrypted_content = pad_base64(encrypted_content_b64)
+
+        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_encrypted_content))
         # Use the symmetric key to decrypt the private key
         cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
         decrypted_content = cipher.decrypt_and_verify(ciphertext, tag)
@@ -206,6 +173,7 @@ def create_folder(folder_name):
     response = requests.get('http://localhost:5000/get_curr_dir')
     encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())
     # TODO UPDATE CLIENT INDEX AT EACH FOLDER CREATION
+
     #client_index.add_folder(folder_name, encrypted_folder_name)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
@@ -221,32 +189,6 @@ def get_files_list():
         decrypt_all_files_and_complete_list(directories)
     else:
         print("Failed to retrieve directories")
-
-
-def decrypt_all_files_and_complete_list(structure):
-    for entry in structure:
-        folder_name = entry[2]
-        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(folder_name))
-        cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
-
-        decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
-        entry[1] = decrypted_name
-        if entry[0] == 'directory' and len(entry) > 3:  # It's a directory
-            decrypt_all_files_and_complete_list(entry[3])
-
-    client_index.index = structure
-
-
-def print_tree_structure(directory_structure, indent_level=0):
-    indent = '    ' * indent_level  # 4 spaces per indentation level
-    for entry in directory_structure:
-        # Print the folder name
-        folder_name = entry[1]
-        print(f"{indent}{folder_name}")
-
-        # If there are subfolders, recursively print them with increased indentation
-        if len(entry) > 3:  # Check if there is a suvbfolder list in the entry
-            print_tree_structure(entry[3], indent_level + 1)
 
 
 def change_current_directory(new_curr_directory):
@@ -266,36 +208,6 @@ def change_current_directory(new_curr_directory):
         print("Failed to change directory")
 
 
-def find_encrypted_directory_name(directory_structure, encrypted_name, file_type):
-    for entry in directory_structure:
-        entry_name = entry[1]
-        if entry_name == encrypted_name and entry[0] == file_type:
-            return entry[2]  # Return the associated decrypted name
-
-        # If there are subfolders, recursively search them
-        if len(entry) == 4:  # Check if there is a subfolder list in the entry
-            found = find_encrypted_directory_name(entry[3], encrypted_name, file_type)
-            if found is not None:
-                return found
-
-    return None  # Return None if the directory is not found
-
-
-def find_decrypted_directory_name(directory_structure, decrypted_name, file_type):
-    for entry in directory_structure:
-        entry_name = entry[2]
-        if entry_name == decrypted_name and entry[0] == file_type:
-            return entry[1]  # Return the associated decrypted name
-
-        # If there are subfolders, recursively search them
-        if len(entry) == 4:  # Check if there is a subfolder list in the entry
-            found = find_decrypted_directory_name(entry[3], decrypted_name, file_type)
-            if found is not None:
-                return found
-
-    return None  # Return None if the directory is not found
-
-
 def get_curr_dir():
     response = requests.get('http://localhost:5000/get_curr_dir')
     datas = response.json()
@@ -309,3 +221,35 @@ def get_curr_dir():
         print("Current directory: " + str(datas['curr_dir'] + "\n"))
     else:
         return None
+
+
+def pad_base64(b64string):
+    """ Pad the base64 string to the correct length with '=' characters. """
+    padding = 4 - (len(b64string) % 4)
+    return b64string + ("=" * padding)
+
+def decrypt_all_files_and_complete_list(directory_structure):
+    for entry in directory_structure:
+        folder_name = entry[2]
+        padded_folder_name = pad_base64(folder_name)
+        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_folder_name))
+        cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
+
+        decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
+        entry[1] = decrypted_name
+        if entry[0] == 'directory' and len(entry) > 3:  # It's a directory
+            decrypt_all_files_and_complete_list(entry[3])
+
+    client_index.index = directory_structure
+
+
+def print_tree_structure(directory_structure, indent_level=0):
+    indent = '    ' * indent_level  # 4 spaces per indentation level
+    for entry in directory_structure:
+        # Print the folder name
+        folder_name = entry[1]
+        print(f"{indent}{folder_name}")
+
+        # If there are subfolders, recursively print them with increased indentation
+        if len(entry) > 3:  # Check if there is a suvbfolder list in the entry
+            print_tree_structure(entry[3], indent_level + 1)

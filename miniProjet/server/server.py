@@ -108,15 +108,18 @@ def file_upload():
         return "No file part in the request", 400
 
     file = request.files['file']
-
+    app.logger.warning("1 :" + str(file))
     # If the user does not select a file
     if file.filename == '':
         return "No file selected", 400
 
     # Save the file
     filename = secure_filename(file.filename)
+    app.logger.warning("2 :" + str(filename))
+    app.logger.warning("3 :" + str(FILESYSTEM))
     file.save(os.path.join(FILESYSTEM, filename))
-
+    app.logger.warning("4 :" + str(FILESYSTEM))
+    app.logger.warning("4 :" + str(FILESYSTEM + filename))
     return "File uploaded successfully", 200
 
 

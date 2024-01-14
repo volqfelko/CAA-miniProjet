@@ -9,20 +9,33 @@ class ClientIndex:
     def add_folder(self, plain_folder_name, encrypted_folder_name):
         self.index[plain_folder_name] = encrypted_folder_name
 
-    # Function to retrieve an encrypted folder name
-    def get_encrypted_folder_name(self, folder_name):
-        return self.index.get(folder_name)
 
-    """    # Function to save the index to a file (encrypted)
-    def save_index(self, filename):
-        with open(filename, 'wb') as file:
-            encrypted_index = encrypt_data(self.key, json.dumps(self.index))
-            file.write(encrypted_index)
+# Function to retrieve an encrypted folder name
+def find_encrypted_directory_name(directory_structure, encrypted_name, file_type):
+    for entry in directory_structure:
+        entry_name = entry[1]
+        if entry_name == encrypted_name and entry[0] == file_type:
+            return entry[2]  # Return the associated decrypted name
 
-    # Function to load the index from a file (decrypt it)
-    def load_index(self, filename):
-        with open(filename, 'rb') as file:
-            encrypted_index = file.read()
-            decrypted_index = decrypt_data(self.key, encrypted_index)
-            self.index = json.loads(decrypted_index)
-    """
+        # If there are subfolders, recursively search them
+        if len(entry) == 4:  # Check if there is a subfolder list in the entry
+            found = find_encrypted_directory_name(entry[3], encrypted_name, file_type)
+            if found is not None:
+                return found
+
+    return None  # Return None if the directory is not found
+
+
+def find_decrypted_directory_name(directory_structure, decrypted_name, file_type):
+    for entry in directory_structure:
+        entry_name = entry[2]
+        if entry_name == decrypted_name and entry[0] == file_type:
+            return entry[1]  # Return the associated decrypted name
+
+        # If there are subfolders, recursively search them
+        if len(entry) == 4:  # Check if there is a subfolder list in the entry
+            found = find_decrypted_directory_name(entry[3], decrypted_name, file_type)
+            if found is not None:
+                return found
+
+    return None  # Return None if the directory is not found
