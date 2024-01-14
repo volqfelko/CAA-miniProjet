@@ -83,6 +83,8 @@ def change_password():
     update_data = request.json
     username = update_data['username']
     new_master_password_hash = update_data['new_master_password_hash']
+    new_protected_symmetric_key = update_data['new_protected_symmetric_key']
+    new_protected_private_key = update_data['new_protected_private_key']
 
     # Update user's password
     if os.path.exists(users_file):
@@ -90,6 +92,8 @@ def change_password():
             users = json.load(file)
             if username in users:
                 users[username]['master_password_hash'] = new_master_password_hash
+                users[username]['encrypted_symmetric_key'] = new_protected_symmetric_key
+                users[username]['encrypted_private_key'] = new_protected_private_key
                 file.seek(0)
                 file.write(json.dumps(users))
                 file.truncate()

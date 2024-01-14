@@ -73,10 +73,8 @@ def main():
                             print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '6':
-                        username = input("Enter your username: ")
-                        old_password = input("Enter your old master password: ")
                         new_password = input("Enter your new master password: ")
-                        response = change_password(username, old_password, new_password)
+                        response = change_password(username, new_password)
                         if response.status_code == 200:
                             print("\n" + "*" * 30 + "\nPassword changed successfully.\n" + "*" * 30)
                         else:

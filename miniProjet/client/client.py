@@ -129,25 +129,27 @@ def login(username, master_password):
         return response
 
 
-def change_password(username, old_master_password, new_master_password):
-    # To change the password, the user must first log in with the old password
-    # If login is successful, proceed to update the user's credentials with the new password
-    login_response, symmetric_key, private_key = login(username, old_master_password)
-    if login_response.status_code == 200:
-        salt = hash_username(username)
-        new_master_key = argon2_hash(new_master_password, salt).encode('utf-8')[-16:]
+def change_password(username, new_master_password):
+    salt = hash_username(username)
+    new_master_key = argon2_hash(new_master_password, salt).encode('utf-8')[-16:]
 
-        # Prepare the master key for encryption by ensuring it's the right size
-        new_master_password_hash = argon2_hash(new_master_password, new_master_key).encode('utf-8')[-16:]
-        # TODO UPDATE ALL NEW KEYS IN DB
-        update_data = {
-            'username': username,
-            'new_master_password_hash': base64.urlsafe_b64encode(new_master_password_hash).decode()
-        }
+    # Prepare the master key for encryption by ensuring it's the right size
+    new_master_password_hash = argon2_hash(new_master_password, new_master_key).encode('utf-8')[-16:]
 
-        return requests.post('http://localhost:5000/change_password', json=update_data)
-    else:
-        return login_response
+    new_stretched_master_key = HKDF(new_master_key, 32, salt, SHA256, context=HKDF_INFO)
+
+    # Encrypt symmetric and private keys with new stretched master key
+    new_protected_symmetric_key = encrypt_data(new_stretched_master_key, client_index.symmetric_key)
+    new_protected_private_key = encrypt_data(client_index.symmetric_key, client_index.private_key)
+    # TODO UPDATE ALL NEW KEYS IN DB
+    update_data = {
+        'username': username,
+        'new_master_password_hash': base64.urlsafe_b64encode(new_master_password_hash).decode(),
+        'new_protected_symmetric_key': new_protected_symmetric_key,
+        'new_protected_private_key': new_protected_private_key
+    }
+
+    return requests.post('http://localhost:5000/change_password', json=update_data)
 
 
 def upload_file(file_path):
