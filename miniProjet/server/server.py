@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import os
 import json
-
-from werkzeug.utils import secure_filename, send_file
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -120,7 +119,7 @@ def file_upload():
 @app.route('/download_file', methods=['GET'])
 def download_file():
     # The client should pass the filename as a query parameter
-    filename = request.args.get('filename')
+    filename = request.args.get('encrypted_file_name')
 
     if filename:
         file_path = os.path.join(FILESYSTEM, filename)

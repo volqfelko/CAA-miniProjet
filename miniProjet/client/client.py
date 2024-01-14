@@ -165,9 +165,9 @@ def upload_file(file_path):
 
 def download_file(file_name):
     try:
-        encrypted_file_name = find_directory_name(client_index.index, file_name)
+        encrypted_file_name = find_directory_name(client_index.index, file_name, 'file')
         if encrypted_file_name is None:
-            print("Directory not found")
+            print("file not found")
             return
         response = requests.get('http://localhost:5000/download_file', params={'encrypted_file_name': encrypted_file_name}, stream=True)
         response.raise_for_status()
@@ -251,15 +251,15 @@ def change_current_directory(new_curr_directory):
         print("Failed to change directory")
 
 
-def find_directory_name(directory_structure, directory_name):
+def find_directory_name(directory_structure, name, file_type):
     for entry in directory_structure:
-        folder_name = entry[1]
-        if folder_name == directory_name and entry[0] == 'directory':
+        entry_name = entry[1]
+        if entry_name == name and entry[0] == file_type:
             return entry[2]  # Return the associated decrypted name
 
         # If there are subfolders, recursively search them
         if len(entry) == 4:  # Check if there is a subfolder list in the entry
-            found = find_directory_name(entry[3], directory_name)
+            found = find_directory_name(entry[3], name, file_type)
             if found is not None:
                 return found
 
