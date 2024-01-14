@@ -23,7 +23,9 @@ def main():
             master_password = input("Enter your master password: ")
             response = login(username, master_password.encode('utf-8'))
             if response.status_code == 200:
-                print("\n" + "*" * 30 + "\nLogin successful.\n" + "*" * 30)
+                print("\n" + "*" * 30 + "\nLogin successful !"
+                                        "\nSymmetric and private keys retrieved."
+                                        "\n" + "*" * 30)
                 while True:
                     print("\nWelcome " + str(username) + "\n")
                     print("1. Upload File")
@@ -32,7 +34,7 @@ def main():
                     print("4. Change directory")
                     print("5. Change Password")
                     print("6. Exit")
-                    choice = input("Choose an option: ")
+                    choice = input("\n" + "Choose an option: ")
 
                     if choice == '2':
                         folder_name = input("Enter folder name to create: ")
@@ -40,20 +42,21 @@ def main():
                         if response.status_code == 200:
                             print("\n" + "*" * 30 + "\nFolder " + str(folder_name) + " created.\n" + "*" * 30)
                         else:
-                            print("Folder creation failed: " + response.json().get('error', 'Unknown error'))
+                            print("\n" + "Folder creation failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '3':
                         if response.status_code == 200:
-                            get_files_list()
+                            print("\nDirectories and files in your vault:\n")
+                            print_tree_structure(client_index.index)
                         else:
-                            print("File listing failed: " + response.json().get('error', 'Unknown error'))
+                            print("\n" + "File listing failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '4':
                         if response.status_code == 200:
-                            choice = input("wich directory do you want to move to ? ")
+                            choice = input("\n" + "wich directory do you want to move to ? ")
                             change_current_directory(choice)
                         else:
-                            print("Directory moving failed: " + response.json().get('error', 'Unknown error'))
+                            print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '5':
                         username = input("Enter your username: ")
@@ -63,20 +66,20 @@ def main():
                         if response.status_code == 200:
                             print("\n" + "*" * 30 + "\nPassword changed successfully.\n" + "*" * 30)
                         else:
-                            print("Password change failed: " + response.json().get('error', 'Unknown error'))
+                            print("\n" + "Password change failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '5':
-                        print("Exiting the application.")
+                        print("\n" + "Exiting the application.")
                         return
             else:
-                print("Login failed: " + response.json().get('error', 'Unknown error'))
+                print("\n" + "Login failed: " + response.json().get('error', 'Unknown error'))
 
         elif choice == '3':
-            print("Exiting the application.")
+            print("\n" + "Exiting the application.")
             break
 
         else:
-            print("Invalid choice. Please try again.")
+            print("\n" + "Invalid choice. Please try again.")
 
 
 if __name__ == "__main__":

@@ -121,8 +121,6 @@ def login(username, master_password):
 
         #Decrypt everything in vault first login and populate client_index
         get_files_list()
-        print(client_index.index)
-        print("Login successful. Symmetric and private keys retrieved.")
         return response
     else:
         print("Login failed:", response.json().get('error', 'Unknown error'))
@@ -165,13 +163,12 @@ def get_files_list():
     response = requests.post('http://localhost:5000/list_directories')
     if response.status_code == 200:
         directories = response.json()
-        print("\nDirectories and files in your vault:")
-        print_tree(directories)
+        decrypt_all_files_and_complete_list(directories)
     else:
         print("Failed to retrieve directories")
 
 
-def print_tree(structure, indent=0):
+def decrypt_all_files_and_complete_list(structure):
     for entry in structure:
         folder_name = entry[1]
         IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(folder_name))
@@ -179,11 +176,22 @@ def print_tree(structure, indent=0):
 
         decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
         entry[0] = decrypted_name
-        print(' ' * indent + decrypted_name)
         if len(entry) == 3:  # It's a directory
-            print_tree(entry[2], indent + 4)
+            decrypt_all_files_and_complete_list(entry[2])
 
     client_index.index = structure
+
+
+def print_tree_structure(directory_structure, indent_level=0):
+    indent = '    ' * indent_level  # 4 spaces per indentation level
+    for entry in directory_structure:
+        # Print the folder name
+        folder_name = entry[0]
+        print(f"{indent}{folder_name}")
+
+        # If there are subfolders, recursively print them with increased indentation
+        if len(entry) == 3:  # Check if there is a subfolder list in the entry
+            print_tree_structure(entry[2], indent_level + 1)
 
 
 def change_current_directory(new_curr_directory):
@@ -196,8 +204,7 @@ def change_current_directory(new_curr_directory):
 
     if response.status_code == 200:
         directories = response.json()
-        print("\nDirectories and files in your vault:")
-        print_tree(directories)
+        print("\n" + "Directories and files in your vault:")
+        decrypt_all_files_and_complete_list(directories)
     else:
         print("Failed to retrieve directories")
-
