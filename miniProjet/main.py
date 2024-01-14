@@ -30,11 +30,12 @@ def main():
                     print("\nWelcome " + str(username) + "\n")
                     get_curr_dir()
                     print("1. Upload File")
-                    print("2. Create folder")
-                    print("3. List directories")
-                    print("4. Change directory")
-                    print("5. Change Password")
-                    print("6. Exit")
+                    print("2. Download File")
+                    print("3. Create folder")
+                    print("4. List directories")
+                    print("5. Change directory")
+                    print("6. Change Password")
+                    print("7. Exit")
                     choice = input("\n" + "Choose an option: ")
 
                     if choice == '1':
@@ -46,6 +47,14 @@ def main():
                             print("\n" + "File upload failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '2':
+                        file_name = input("Enter folder name to create: ")
+                        download_file(file_name)
+                        if response.status_code == 200:
+                            print("\n" + "*" * 30 + "\nFile " + str(file_name) + " downloaded.\n" + "*" * 30)
+                        else:
+                            print("\n" + "Folder creation failed: " + response.json().get('error', 'Unknown error'))
+
+                    elif choice == '3':
                         folder_name = input("Enter folder name to create: ")
                         create_folder(folder_name)
                         if response.status_code == 200:
@@ -53,21 +62,21 @@ def main():
                         else:
                             print("\n" + "Folder creation failed: " + response.json().get('error', 'Unknown error'))
 
-                    elif choice == '3':
+                    elif choice == '4':
                         if response.status_code == 200:
                             print("\nDirectories and files in your vault:\n")
                             print_tree_structure(client_index.index)
                         else:
                             print("\n" + "File listing failed: " + response.json().get('error', 'Unknown error'))
 
-                    elif choice == '4':
+                    elif choice == '5':
                         if response.status_code == 200:
                             choice = input("\n" + "wich directory do you want to move to ? ")
                             change_current_directory(choice)
                         else:
                             print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
 
-                    elif choice == '5':
+                    elif choice == '6':
                         username = input("Enter your username: ")
                         old_password = input("Enter your old master password: ")
                         new_password = input("Enter your new master password: ")
@@ -77,7 +86,7 @@ def main():
                         else:
                             print("\n" + "Password change failed: " + response.json().get('error', 'Unknown error'))
 
-                    elif choice == '5':
+                    elif choice == '7':
                         print("\n" + "Exiting the application.")
                         return
             else:

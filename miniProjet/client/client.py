@@ -163,6 +163,30 @@ def upload_file(file_path):
     return response
 
 
+def download_file(file_name):
+    try:
+        encrypted_file_name = find_directory_name(client_index.index, file_name)
+        if encrypted_file_name is None:
+            print("Directory not found")
+            return
+        response = requests.get('http://localhost:5000/download_file', params={'encrypted_file_name': encrypted_file_name}, stream=True)
+        response.raise_for_status()
+
+        with open(file_name, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        return "File downloaded successfully."
+    except requests.exceptions.HTTPError as errh:
+        return f"HTTP Error: {errh}"
+    except requests.exceptions.ConnectionError as errc:
+        return f"Error Connecting: {errc}"
+    except requests.exceptions.Timeout as errt:
+        return f"Timeout Error: {errt}"
+    except requests.exceptions.RequestException as err:
+        return f"Error: {err}"
+
+
 def create_folder(folder_name):
     response = requests.get('http://localhost:5000/get_curr_dir')
     encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())

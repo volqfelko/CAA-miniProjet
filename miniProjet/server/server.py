@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import os
 import json
 
-from werkzeug.utils import secure_filename
+from werkzeug.utils import secure_filename, send_file
 
 app = Flask(__name__)
 
@@ -115,6 +115,22 @@ def file_upload():
     file.save(os.path.join(FILESYSTEM, filename))
 
     return "File uploaded successfully", 200
+
+
+@app.route('/download_file', methods=['GET'])
+def download_file():
+    # The client should pass the filename as a query parameter
+    filename = request.args.get('filename')
+
+    if filename:
+        file_path = os.path.join(FILESYSTEM, filename)
+
+        try:
+            return send_file(file_path, as_attachment=True)
+        except FileNotFoundError:
+            return "File not found", 404
+    else:
+        return "Filename not provided", 400
 
 
 @app.route('/create_folder', methods=['POST'])
