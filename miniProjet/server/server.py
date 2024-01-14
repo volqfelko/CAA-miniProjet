@@ -97,11 +97,11 @@ def handle_create_folder():
     # Extract user's personal folder path
     new_folder = request.json
     encrypted_folder_name = new_folder['encrypted_folder_name']
-    app.logger.warning(base64.urlsafe_b64decode(encrypted_folder_name))
     # Create new folder with encrypted name
     new_folder_path = os.path.join(FILESYSTEM, encrypted_folder_name)
     app.logger.warning(new_folder_path)
     os.makedirs(new_folder_path, exist_ok=True)
+    return jsonify({"success": True, "Created directory": new_folder_path}), 200
 
 
 @app.route('/list_directories', methods=['POST'])
@@ -133,16 +133,15 @@ def list_user_directories():
 @app.route('/change_directory', methods=['POST'])
 def change_current_directory():
     request_data = request.json
-    new_curr_directory = request_data['encrypted_new_curr_directory']
-
+    encrypted_directory_name = request_data['encrypted_new_curr_directory']
     # Check if the new directory exists
-    if not os.path.exists(new_curr_directory):
+    if not os.path.join(FILESYSTEM, encrypted_directory_name):
         return jsonify({"error": "Directory does not exist"}), 404
 
     try:
         # Change the current working directory
-        update_curr_dir(new_curr_directory)
-        return jsonify({"success": True, "current_directory": new_curr_directory}), 200
+        update_curr_dir(encrypted_directory_name)
+        return jsonify({"success": True, "current_directory": encrypted_directory_name}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

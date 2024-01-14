@@ -150,7 +150,7 @@ def change_password(username, old_master_password, new_master_password):
 
 def create_folder(folder_name):
     encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())
-    client_index.add_folder(folder_name, encrypted_folder_name)
+    #client_index.add_folder(folder_name, encrypted_folder_name)
     print(client_index.index)
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
@@ -195,7 +195,10 @@ def print_tree_structure(directory_structure, indent_level=0):
 
 
 def change_current_directory(new_curr_directory):
-    encrypted_folder_name = encrypt_data(client_index.symmetric_key, new_curr_directory.encode())
+    encrypted_folder_name = find_directory_name(client_index.index, new_curr_directory)
+    if encrypted_folder_name is None:
+        print("Directory not found")
+        return
 
     encrypted_new_curr_directory = {
         'encrypted_new_curr_directory': encrypted_folder_name,
@@ -203,8 +206,21 @@ def change_current_directory(new_curr_directory):
     response = requests.post('http://localhost:5000/change_directory', json=encrypted_new_curr_directory)
 
     if response.status_code == 200:
-        directories = response.json()
-        print("\n" + "Directories and files in your vault:")
-        decrypt_all_files_and_complete_list(directories)
+        print("Changed directory successfully")
     else:
-        print("Failed to retrieve directories")
+        print("Failed to change directory")
+
+
+def find_directory_name(directory_structure, directory_name):
+    for entry in directory_structure:
+        folder_name = entry[0]  # Assuming folder name is the second element
+        if folder_name == directory_name:
+            return entry[1]  # Return the associated decrypted name
+
+        # If there are subfolders, recursively search them
+        if len(entry) == 3:  # Check if there is a subfolder list in the entry
+            found = find_directory_name(entry[2], directory_name)
+            if found is not None:
+                return found
+
+    return None  # Return None if the directory is not found
