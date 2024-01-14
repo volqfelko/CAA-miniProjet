@@ -206,7 +206,7 @@ def print_tree_structure(directory_structure, indent_level=0):
         print(f"{indent}{folder_name}")
 
         # If there are subfolders, recursively print them with increased indentation
-        if len(entry) > 3:  # Check if there is a subfolder list in the entry
+        if len(entry) > 3:  # Check if there is a suvbfolder list in the entry
             print_tree_structure(entry[3], indent_level + 1)
 
 
@@ -229,13 +229,13 @@ def change_current_directory(new_curr_directory):
 
 def find_directory_name(directory_structure, directory_name):
     for entry in directory_structure:
-        folder_name = entry[0]
-        if folder_name == directory_name:
-            return entry[1]  # Return the associated decrypted name
+        folder_name = entry[1]
+        if folder_name == directory_name and entry[0] == 'directory':
+            return entry[2]  # Return the associated decrypted name
 
         # If there are subfolders, recursively search them
-        if len(entry) == 3:  # Check if there is a subfolder list in the entry
-            found = find_directory_name(entry[2], directory_name)
+        if len(entry) == 4:  # Check if there is a subfolder list in the entry
+            found = find_directory_name(entry[3], directory_name)
             if found is not None:
                 return found
 
