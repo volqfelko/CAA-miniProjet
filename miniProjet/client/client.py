@@ -169,17 +169,50 @@ def download_file(file_name):
         return f"Error: {err}"
 
 
-def create_folder(folder_name):
-    response = requests.get('http://localhost:5000/get_curr_dir')
-    encrypted_folder_name = encrypt_data(client_index.symmetric_key, folder_name.encode())
-    # TODO UPDATE CLIENT INDEX AT EACH FOLDER CREATION
+def create_folder(plain_folder_name):
+    response = requests.get('http://localhost:5000/get_full_curr_dir')
+    if response.status_code == 200:
+        # If login is successful, decrypt the received keys
+        data = response.json()
+        encrypted_folder_name = encrypt_data(client_index.symmetric_key, plain_folder_name.encode())
+        entry = ['directory', plain_folder_name, encrypted_folder_name]
+        result = insert_entry_in_structure(client_index.index, data['full_cur_path'], entry)
 
-    #client_index.add_folder(folder_name, encrypted_folder_name)
-    new_folder = {
-        'encrypted_folder_name': encrypted_folder_name,
-    }
-    # Send encrypted folder name and folder_info_json to the server
-    return requests.post('http://localhost:5000/create_folder', json=new_folder)
+        if result is False:
+            print("Failed to create folder at right index")
+            return
+
+        new_folder = {
+            'encrypted_folder_name': encrypted_folder_name,
+        }
+
+        # Send encrypted folder name and folder_info_json to the server
+        return requests.post('http://localhost:5000/create_folder', json=new_folder)
+    else:
+        return response
+
+
+def insert_entry_in_structure(directory_structure, path, new_entry):
+    def recurse_and_insert(structure, path_components):
+        if not path_components:
+            return False
+
+        current_component = path_components[0]
+        for entry in structure:
+            if entry[0] in ['directory', 'file'] and entry[2] == current_component:
+                if entry[0] == 'directory':
+                    if len(entry) <= 3:
+                        entry.append([])  # Ensure there's a list to append to if it doesn't exist
+                    if len(path_components) == 1:
+                        # Insert the new entry in the current directory
+                        entry[3].append(new_entry)
+                        return True
+                    # Recurse into the directory
+                    return recurse_and_insert(entry[3], path_components[1:])
+        return False
+
+    path_components = path.split('\\')
+    return recurse_and_insert(directory_structure, path_components)
 
 
 def get_files_list():
@@ -192,6 +225,7 @@ def get_files_list():
 
 
 def change_current_directory(new_curr_directory):
+    # TODO GO BACKWARDS, FOR NOW IT ONLY GOES FORWARD
     encrypted_folder_name = find_encrypted_directory_name(client_index.index, new_curr_directory, 'directory')
     if encrypted_folder_name is None:
         print("Directory not found")

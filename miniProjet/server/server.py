@@ -20,6 +20,14 @@ def get_curr_dir():
     return jsonify({"curr_dir": truncated_path}), 200
 
 
+@app.route('/get_full_curr_dir', methods=['GET'])
+def get_full_curr_dir():
+    second_backslash_index = "\\".join(FILESYSTEM.split("\\")[2:])
+    if second_backslash_index != -1:
+        return jsonify({"full_cur_path": second_backslash_index}), 200
+    return jsonify({"full_cur_path": FILESYSTEM}), 200
+
+
 @app.route('/register', methods=['POST'])
 def register():
     user_data = request.json
