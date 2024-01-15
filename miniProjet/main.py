@@ -25,9 +25,10 @@ def main():
             if response.status_code == 200:
                 print("\n" + "*" * 30 + "\nLogin successful !"
                                         "\nSymmetric and private keys retrieved."
+                                        "\nVault Decrypted."
                                         "\n" + "*" * 30)
+                print("\nWelcome " + str(username) + "\n")
                 while True:
-                    print("\nWelcome " + str(username) + "\n")
                     get_curr_dir()
                     print("1. Upload File")
                     print("2. Download File")

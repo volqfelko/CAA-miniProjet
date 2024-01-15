@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 import os
 import json
-from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
 
