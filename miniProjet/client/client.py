@@ -126,6 +126,15 @@ def upload_file(file_path):
 
     # Send the encrypted file to the server
     response = requests.post('http://localhost:5000/file_upload', files=files)
+    if response.status_code == 200:
+        response = requests.get('http://localhost:5000/get_full_curr_dir')
+        data = response.json()
+        entry = ['file', file_name, encrypted_file_name]
+        result = insert_entry_in_structure(client_index.index, data['full_cur_path'], entry)
+
+        if result is False:
+            print("Failed to create folder at right index")
+            return
 
     return response
 
