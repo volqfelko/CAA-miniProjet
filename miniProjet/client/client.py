@@ -126,17 +126,24 @@ def upload_file(file_path):
 
     # Send the encrypted file to the server
     response = requests.post('http://localhost:5000/file_upload', files=files)
-    if response.status_code == 200:
-        response = requests.get('http://localhost:5000/get_full_curr_dir')
-        data = response.json()
-        entry = ['file', file_name, encrypted_file_name]
-        result = insert_entry_in_structure(client_index.index, data['full_cur_path'], entry)
+    full_curr_path = get_full_curr_dir()
+    entry = ['file', file_name, encrypted_file_name]
+    result = insert_entry_in_structure(client_index.index, full_curr_path, entry)
 
-        if result is False:
-            print("Failed to create folder at right index")
-            return
+    if result is False:
+        print("Failed to create folder at right index")
+        return
 
     return response
+
+
+def get_full_curr_dir():
+    response = requests.get('http://localhost:5000/get_full_curr_dir')
+    if response.status_code == 200:
+        data = response.json()
+        return data['full_cur_path']
+    else:
+        return response
 
 
 def download_file(file_name):
@@ -179,26 +186,21 @@ def download_file(file_name):
 
 
 def create_folder(plain_folder_name):
-    response = requests.get('http://localhost:5000/get_full_curr_dir')
-    if response.status_code == 200:
-        # If login is successful, decrypt the received keys
-        data = response.json()
-        encrypted_folder_name = encrypt_data(client_index.symmetric_key, plain_folder_name.encode())
-        entry = ['directory', plain_folder_name, encrypted_folder_name]
-        result = insert_entry_in_structure(client_index.index, data['full_cur_path'], entry)
+    full_curr_path = get_full_curr_dir()
+    encrypted_folder_name = encrypt_data(client_index.symmetric_key, plain_folder_name.encode())
+    entry = ['directory', plain_folder_name, encrypted_folder_name]
+    result = insert_entry_in_structure(client_index.index, full_curr_path, entry)
 
-        if result is False:
-            print("Failed to create folder at right index")
-            return
+    if result is False:
+        print("Failed to create folder at right index")
+        return
 
-        new_folder = {
-            'encrypted_folder_name': encrypted_folder_name,
-        }
+    new_folder = {
+        'encrypted_folder_name': encrypted_folder_name,
+    }
 
-        # Send encrypted folder name and folder_info_json to the server
-        return requests.post('http://localhost:5000/create_folder', json=new_folder)
-    else:
-        return response
+    # Send encrypted folder name and folder_info_json to the server
+    return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
 def insert_entry_in_structure(directory_structure, path, new_entry):
