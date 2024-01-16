@@ -256,7 +256,7 @@ def insert_entry_in_structure(directory_structure, path, new_entry):
 def find_parent_structure(directory_structure, path):
     path_components = path.split('\\')
 
-    def traverse(structure, index=0, parent=None):
+    def traverse(structure, index=0):
         for entry in structure:
             if index >= len(path_components):
                 # Return the parent structure for the last path component
@@ -264,7 +264,7 @@ def find_parent_structure(directory_structure, path):
             elif entry[0] == 'directory' and entry[2] == path_components[index]:
                 # If it's a directory and the name matches, go deeper
                 if len(entry) > 5 and isinstance(entry[5], list):
-                    return traverse(entry[5], index + 1, structure)
+                    return traverse(entry[5], index + 1)
                 elif index == len(path_components) - 1:
                     return True, entry
             elif entry[0] == 'file' and entry[2] == path_components[index]:
@@ -287,7 +287,7 @@ def get_files_list():
     response = requests.post('http://localhost:5000/get_personal_file_struct')
     if response.status_code == 200:
         directories = response.json()
-        decrypt_all_files_and_complete_list(directories)
+        decrypt_all_files_and_complete_list(directories, client_index.symmetric_key)
     else:
         print("Failed to retrieve directories")
 
@@ -316,41 +316,48 @@ def pad_base64(b64string):
     return b64string + ("=" * padding)
 
 
-def decrypt_all_files_and_complete_list(directory_structure):
+def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, depth=0):
     for entry in directory_structure:
+        if entry[0] == 'directory':
+            nested_symmetric_key = symmetric_key
+            if depth > 0:
+                # Decrypt the nested directory's symmetric key with the current symmetric key
+                nested_symmetric_key = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[4]))
 
-        exists, plain_parent_symmetric_key = find_parent_of_entry(directory_structure, entry)
-        if exists:
-            encrypted_symmetric_key = entry[4]
-            IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(encrypted_symmetric_key))
+            # Decrypt the folder name with the current symmetric key
+            decrypted_folder_name = decrypt_data2(nested_symmetric_key, base64.urlsafe_b64decode(entry[2]))
+            entry[1] = decrypted_folder_name.decode()
 
-            cipher = ChaCha20_Poly1305.new(key=plain_parent_symmetric_key[3], nonce=IV)
-            decrypted_symmetric_key = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
-            entry[3] = decrypted_symmetric_key
-        else:
-            entry[3] = client_index.symmetric_key
-            folder_name = entry[2]
-            padded_folder_name = pad_base64(folder_name)
-            IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_folder_name))
-            cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
-            decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
-            entry[1] = decrypted_name
+            # Determine the symmetric key for the nested directory
+            entry[3] = nested_symmetric_key
 
-        if entry[0] == 'directory' and len(entry) > 5:  # It's a directory
-            decrypt_all_files_and_complete_list(entry[5])
+            # Recursively process subdirectories
+            if len(entry) > 5:
+                decrypt_all_files_and_complete_list(entry[5], nested_symmetric_key, depth + 1)
+
+        elif entry[0] == 'file':
+            # Decrypt file name
+            decrypted_file_name = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[2]))
+            entry[1] = decrypted_file_name
 
     client_index.index = directory_structure
 
 
+def decrypt_data2(key, data):
+    IV, tag, ciphertext = extract_chacha_cipher_infos(data)
+    cipher = ChaCha20_Poly1305.new(key=key, nonce=IV)
+    return cipher.decrypt_and_verify(ciphertext, tag)
+
+
 def find_parent_of_entry(directory_structure, entry_name):
-    def traverse(structure, parent=None):
+    def traverse(structure):
         for entry in structure:
-            if entry[0] in ['directory', 'file'] and entry[1] == entry_name:
-                return True, parent
+            if entry[0] in ['directory', 'file'] and entry[2] == entry_name[2]:
+                return True, entry
 
             # If it's a directory, go deeper
-            if entry[0] == 'directory' and len(entry) > 3 and isinstance(entry[3], list):
-                found, parent_structure = traverse(entry[3], entry)
+            if entry[0] == 'directory' and len(entry) > 5 and isinstance(entry[5], list):
+                found, parent_structure = traverse(entry[5])
                 if found:
                     return True, parent_structure
 
