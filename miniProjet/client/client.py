@@ -257,19 +257,20 @@ def find_parent_structure(directory_structure, path):
     path_components = path.split('\\')
 
     def traverse(structure, index=0, parent=None):
-        if index >= len(path_components):
-            # Return the parent structure for the last path component
-            return True, parent
-
         for entry in structure:
-            if entry[0] == 'directory' and entry[2] == path_components[index]:
+            if index >= len(path_components):
+                # Return the parent structure for the last path component
+                return True, entry
+            elif entry[0] == 'directory' and entry[2] == path_components[index]:
                 # If it's a directory and the name matches, go deeper
                 if len(entry) > 5 and isinstance(entry[5], list):
                     return traverse(entry[5], index + 1, structure)
+                elif index == len(path_components) - 1:
+                    return True, entry
             elif entry[0] == 'file' and entry[2] == path_components[index]:
                 # If it's a file and it's the last component in the path
                 if index == len(path_components) - 1:
-                    return True, parent
+                    return True, entry
 
         return False, None
 

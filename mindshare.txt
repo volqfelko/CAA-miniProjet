@@ -1,0 +1,40 @@
+creation : 
+
+crée un DB user
+crée un fichier json personnel à la racine qui va contenir une structure des directories 
+avec la clé symmetrique chiffrée qui a servi a chiffrer chacun
+
+login :
+
+Pour remplir client.index struct et tout dechiffrer au login, recupère la liste perso json du srv
+et déchiffre tout avec la clé correspondante à chaque entrée 
+et stocke le nom du fichier déchiffré [NOUVELLE ENTREE]
+et stocke la clé symmetrique déchiffrée utile au déchiffrement [NOUVELLE ENTREE]
+
+list dir : 
+
+marche comme avant juste parcourir la liste
+
+create folder : 
+
+Génére une nouvelle clé symmetrique
+Chiffre le nom du doss avec la nouvelle clé
+Récupere la clé symmetrique du dossier parent dans client.index struct
+Chiffre la nouvelle clé symmetrique avec
+Envoie les 2 au serveur pour completer sa liste json
+
+upload file : 
+
+Récupère la clé symmetrique du dossier parent dans client.index struct
+Chiffre le file name avec
+Chiffre le file content avec
+
+
+
+
+srv struct : [filtype, "", encrypted filename, "", encrypted_symm_key, potentiel sufolder[] ]
+
+
+client struct : [filtype, plain filename, encrypted filename, plain encrypted_symm_key, encrypted_symm_key, potentiel sufolder[] ]
+
+

@@ -20,8 +20,8 @@ def find_encrypted_directory_name(directory_structure, encrypted_name, file_type
             return entry[2]  # Return the associated decrypted name
 
         # If there are subfolders, recursively search them
-        if len(entry) == 4:  # Check if there is a subfolder list in the entry
-            found = find_encrypted_directory_name(entry[3], encrypted_name, file_type)
+        if len(entry) == 6:  # Check if there is a subfolder list in the entry
+            found = find_encrypted_directory_name(entry[5], encrypted_name, file_type)
             if found is not None:
                 return found
 

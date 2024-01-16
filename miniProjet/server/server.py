@@ -171,12 +171,12 @@ def handle_create_folder():
 
     dir_structure = get_personal_file_struct()
     app.logger.warning("1 sruct  : " + str(dir_structure))
-
-    third_backslash_index = "\\".join(new_folder_path.split("\\")[2:])
-    app.logger.warning("1 third_backslash_index  : " + str(third_backslash_index))
-    app.logger.warning("1 server_entry  : " + str(server_entry))
-    insert_entry_in_structure(dir_structure, third_backslash_index, server_entry)
-    update_personal_file_struct(dir_structure)
+    if not dir_structure:
+        first_entry = [server_entry]
+        update_personal_file_struct(first_entry)
+    else:
+        second_backslash_index = "\\".join(FILESYSTEM.split("\\")[2:])
+        insert_entry_in_structure(dir_structure, second_backslash_index, server_entry)
     return jsonify({"success": True, "Created directory": new_folder_path}), 200
 
 
@@ -248,6 +248,10 @@ def change_current_directory():
 
 
 def insert_entry_in_structure(directory_structure, path, new_entry):
+    if not path:  # Base case: insert at current level
+        directory_structure.append(new_entry)
+        update_personal_file_struct(directory_structure)
+        return True
     def recurse_and_insert(structure, path_components):
         current_component = path_components[0]
         for entry in structure:
@@ -265,15 +269,11 @@ def insert_entry_in_structure(directory_structure, path, new_entry):
         return False
 
     path_components = path.split('\\')
-    if not directory_structure:
-        first_entry = [new_entry]
-        update_personal_file_struct(first_entry)
-        return True
-    elif not path_components or path_components == ['']:
-        directory_structure.append(new_entry)
-        update_personal_file_struct(directory_structure)
-        return True
-    return recurse_and_insert(directory_structure, path_components)
+    # Update the existing directory structure
+    if not recurse_and_insert(directory_structure, path_components):
+        print("Warning: Unable to insert the entry in the directory structure")
+
+    update_personal_file_struct(directory_structure)
 
 
 app.run(debug=True, port=5000)
