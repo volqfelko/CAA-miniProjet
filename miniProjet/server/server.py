@@ -126,18 +126,23 @@ def file_upload():
         return "No file part in the request", 400
 
     file = request.files['file']
-    app.logger.warning("1 :" + str(file))
     # If the user does not select a file
     if file.filename == '':
         return "No file selected", 400
 
     # Save the file
     filename = secure_filename(file.filename)
-    app.logger.warning("2 :" + str(filename))
-    app.logger.warning("3 :" + str(FILESYSTEM))
     file.save(os.path.join(FILESYSTEM, filename))
-    app.logger.warning("4 :" + str(FILESYSTEM))
-    app.logger.warning("4 :" + str(FILESYSTEM + filename))
+
+    dir_structure = get_personal_file_struct()
+    server_entry = ['file', '', file.filename, '', '']
+
+    if not dir_structure:
+        first_entry = [server_entry]
+        update_personal_file_struct(first_entry)
+    else:
+        second_backslash_index = "\\".join(FILESYSTEM.split("\\")[2:])
+        insert_entry_in_structure(dir_structure, second_backslash_index, server_entry)
     return "File uploaded successfully", 200
 
 

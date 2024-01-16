@@ -117,17 +117,24 @@ def change_password(username, new_master_password):
 
 
 def upload_file(file_path):
+    full_curr_path = get_full_curr_dir()
+    exists, parent = find_parent_structure(client_index.index, full_curr_path)
+    if exists:
+        parent_symmetric_key = parent[3]
+    else:
+        parent_symmetric_key = client_index.symmetric_key
+
     with open(file_path, 'rb') as file:
         original = file.read()
-    encrypted_file = encrypt_data(client_index.symmetric_key, original)
+    encrypted_file = encrypt_data(parent_symmetric_key, original)
 
     file_name = file_path.split('\\')[-1]
-    encrypted_file_name = encrypt_data(client_index.symmetric_key, file_name.encode())
+    encrypted_file_name = encrypt_data(parent_symmetric_key, file_name.encode())
     files = {'file': (encrypted_file_name, encrypted_file)}
 
     # Send the encrypted file to the server
     response = requests.post('http://localhost:5000/file_upload', files=files)
-    full_curr_path = get_full_curr_dir()
+
     entry = ['file', file_name, encrypted_file_name]
     result = insert_entry_in_structure(client_index.index, full_curr_path, entry)
 
