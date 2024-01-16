@@ -7,7 +7,9 @@ import json
 app = Flask(__name__)
 
 users_file = 'users.json'
+personal_data_file = 'personal_data.json'
 FILESYSTEM = 'filesystem'
+USERNAME = ''
 
 
 def update_curr_dir(new_dir):
@@ -36,6 +38,7 @@ def register():
 
     # Initialize users dictionary
     users = {}
+    personal_directory_struct = []
 
     # Check if the file exists and is not empty
     if os.path.exists(users_file) and os.path.getsize(users_file) > 0:
@@ -58,13 +61,19 @@ def register():
     with open(users_file, 'w') as file:
         json.dump(users, file, indent=2)
 
+    personal_data_file_path = os.path.join(user_folder_path, personal_data_file)
+    with open(personal_data_file_path, 'w') as file:
+        json.dump(personal_directory_struct, file, indent=2)
+
     return jsonify({'success': 'User registered and personnal vault created'}), 200
 
 
 @app.route('/login', methods=['POST'])
 def login():
+    global USERNAME
     login_data = request.json
     username = login_data['username']
+    USERNAME = login_data['username']
     master_password_hash = login_data['master_password_hash']
 
     # Check user credentials
@@ -153,13 +162,40 @@ def handle_create_folder():
     # Extract user's personal folder path
     new_folder = request.json
     encrypted_folder_name = new_folder['encrypted_folder_name']
+    server_entry = new_folder['server_entry']
+
     # Create new folder with encrypted name
     new_folder_path = os.path.join(FILESYSTEM, encrypted_folder_name)
     app.logger.warning(new_folder_path)
     os.makedirs(new_folder_path, exist_ok=True)
+
+    dir_structure = get_personal_file_struct()
+    third_backslash_index = "\\".join(new_folder_path.split("\\")[3:])
+    insert_entry_in_structure(dir_structure, third_backslash_index, server_entry)
+    update_personal_file_struct(dir_structure)
     return jsonify({"success": True, "Created directory": new_folder_path}), 200
 
 
+@app.route('/get_personal_file_struct', methods=['POST'])
+def get_personal_file_struct():
+    try:
+        path = os.path.join(FILESYSTEM, "personal_data.json")
+        with open(path, 'r') as file:
+            data = json.load(file)
+            return data
+    except FileNotFoundError:
+        print("The file was not found.")
+
+
+def update_personal_file_struct(new_entry):
+    try:
+        path = os.path.join("filesystem", USERNAME, "personal_data.json")
+        with open(path, 'w') as file:
+            json.dump(new_entry, file)
+    except FileNotFoundError:
+        print("The file was not found.")
+
+"""
 @app.route('/list_directories', methods=['POST'])
 def list_user_directories():
     # Recursive function to get directory and file structure
@@ -188,6 +224,7 @@ def list_user_directories():
 
     directory_structure = get_directory_structure(FILESYSTEM)
     return jsonify(directory_structure), 200
+"""
 
 
 @app.route('/change_directory', methods=['POST'])
@@ -204,6 +241,37 @@ def change_current_directory():
         return jsonify({"success": True, "current_directory": encrypted_directory_name}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+def insert_entry_in_structure(directory_structure, path, new_entry):
+
+    def recurse_and_insert(structure, path_components):
+        if not path_components:
+            return False
+        current_component = path_components[0]
+        for entry in structure:
+            if entry[0] in ['directory', 'file'] and entry[2] == current_component:
+                if entry[0] == 'directory':
+                    if len(entry) <= 5:
+                        entry.append([])  # Ensure there's a list to append to if it doesn't exist
+                    if len(path_components) == 1:
+                        # Insert the new entry in the current directory
+                        entry[5].append(new_entry)
+                        return True
+                    # Recurse into the directory
+                    return recurse_and_insert(entry[5], path_components[1:])
+        return False
+
+    path_components = path.split('\\')
+    if not directory_structure:
+        first_entry = [new_entry]
+        update_personal_file_struct(first_entry)
+        return True
+    elif not path_components or path_components == ['']:
+        directory_structure.append(new_entry)
+        update_personal_file_struct(directory_structure)
+        return True
+    return recurse_and_insert(directory_structure, path_components)
 
 
 app.run(debug=True, port=5000)

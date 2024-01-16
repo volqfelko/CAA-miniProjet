@@ -1,13 +1,14 @@
 from Crypto.Hash import SHA256
 from Crypto.Cipher import ChaCha20_Poly1305
+from Crypto.PublicKey import RSA
 from argon2 import PasswordHasher
 import base64
-
 
 # Constants for key generation and encryption
 HASH_TRUNCATION_SIZE = 16  # 128 bits
 RSA_KEY_SIZE = 2048
 CHA_CHA20_KEY_SIZE = 32  # 256 bits
+CHA_CHA20_KEY_SIZE_BITS = 256  # 256 bits
 HKDF_INFO = b'client-auth'
 
 # Initialize Argon2 PasswordHasher
@@ -34,3 +35,10 @@ def extract_chacha_cipher_infos(cipher):
     ciphertext = cipher[28:]
 
     return IV, tag, ciphertext
+
+
+def generate_rsa_key_pair():
+    rsa_key = RSA.generate(RSA_KEY_SIZE)
+    public_key = rsa_key.publickey().export_key()
+    private_key = rsa_key.export_key()
+    return private_key, public_key

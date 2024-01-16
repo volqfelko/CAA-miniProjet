@@ -7,4 +7,12 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
+  <component name="PyNamespacePackagesService">
+    <option name="namespacePackageFolders">
+      <list>
+        <option value="$MODULE_DIR$/client" />
+        <option value="$MODULE_DIR$/server" />
+      </list>
+    </option>
+  </component>
 </module>

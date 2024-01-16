@@ -1,8 +1,10 @@
 # Class to handle client-side indexing
 class ClientIndex:
-    def __init__(self, symmetric_key, private_key):
+    def __init__(self, symmetric_key, symmetric_key_encrypted, private_key, private_key_encrypted):
         self.symmetric_key = symmetric_key
+        self.symmetric_key_encrypted = symmetric_key_encrypted
         self.private_key = private_key
+        self.private_key_encrypted = private_key_encrypted
         self.index = []  # This will store the mapping of plaintext names to encrypted names
 
     # Function to add a folder to the index
