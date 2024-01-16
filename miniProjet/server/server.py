@@ -135,7 +135,7 @@ def file_upload():
     file.save(os.path.join(FILESYSTEM, filename))
 
     dir_structure = get_personal_file_struct()
-    server_entry = ['file', '', file.filename, '', '']
+    server_entry = ['file', '', filename, '', '']
 
     if not dir_structure:
         first_entry = [server_entry]

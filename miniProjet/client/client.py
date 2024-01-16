@@ -135,7 +135,7 @@ def upload_file(file_path):
     # Send the encrypted file to the server
     response = requests.post('http://localhost:5000/file_upload', files=files)
 
-    entry = ['file', file_name, encrypted_file_name]
+    entry = ['file', file_name, encrypted_file_name.encode()]
     result = insert_entry_in_structure(client_index.index, full_curr_path, entry)
 
     if result is False:
