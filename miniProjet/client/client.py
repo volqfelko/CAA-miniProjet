@@ -293,7 +293,6 @@ def get_files_list():
 
 def change_current_directory(new_curr_directory):
     # TODO GO BACKWARDS, FOR NOW IT ONLY GOES FORWARD
-    test = client_index.index
     encrypted_folder_name = find_encrypted_directory_name(client_index.index, new_curr_directory, 'directory')
     if encrypted_folder_name is None:
         print("Directory not found")

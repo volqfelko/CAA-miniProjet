@@ -170,7 +170,11 @@ def handle_create_folder():
     os.makedirs(new_folder_path, exist_ok=True)
 
     dir_structure = get_personal_file_struct()
-    third_backslash_index = "\\".join(new_folder_path.split("\\")[3:])
+    app.logger.warning("1 sruct  : " + str(dir_structure))
+
+    third_backslash_index = "\\".join(new_folder_path.split("\\")[2:])
+    app.logger.warning("1 third_backslash_index  : " + str(third_backslash_index))
+    app.logger.warning("1 server_entry  : " + str(server_entry))
     insert_entry_in_structure(dir_structure, third_backslash_index, server_entry)
     update_personal_file_struct(dir_structure)
     return jsonify({"success": True, "Created directory": new_folder_path}), 200
@@ -179,7 +183,7 @@ def handle_create_folder():
 @app.route('/get_personal_file_struct', methods=['POST'])
 def get_personal_file_struct():
     try:
-        path = os.path.join(FILESYSTEM, "personal_data.json")
+        path = os.path.join("filesystem", USERNAME, "personal_data.json")
         with open(path, 'r') as file:
             data = json.load(file)
             return data
@@ -244,10 +248,7 @@ def change_current_directory():
 
 
 def insert_entry_in_structure(directory_structure, path, new_entry):
-
     def recurse_and_insert(structure, path_components):
-        if not path_components:
-            return False
         current_component = path_components[0]
         for entry in structure:
             if entry[0] in ['directory', 'file'] and entry[2] == current_component:
@@ -257,6 +258,7 @@ def insert_entry_in_structure(directory_structure, path, new_entry):
                     if len(path_components) == 1:
                         # Insert the new entry in the current directory
                         entry[5].append(new_entry)
+                        update_personal_file_struct(directory_structure)
                         return True
                     # Recurse into the directory
                     return recurse_and_insert(entry[5], path_components[1:])
