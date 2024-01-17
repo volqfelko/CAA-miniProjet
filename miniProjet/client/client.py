@@ -169,15 +169,46 @@ def get_curr_dir():
         return response
 
 
+def find_file_in_structure(structure, path_str, plain_name):
+    def find_subfolder(folder, subfolder_name):
+        for item in folder:
+            if item[0] == 'directory' and item[2] == subfolder_name:
+                return item[5]  # The subfolder list
+        return None
+
+    # Check if the path string is empty and set the current structure accordingly
+    if path_str == "":
+        current_structure = structure
+    else:
+        # Split the path string into a list of folder names
+        path = path_str.split('\\')
+
+        # Navigate to the given path
+        current_structure = structure
+        for folder_name in path:
+            current_structure = find_subfolder(current_structure, folder_name)
+            if current_structure is None:
+                return f"Path '{path_str}' does not exist."
+
+    # Search for the file in the final directory
+    for item in current_structure:
+        if item[0] != 'directory' and item[1] == plain_name:
+            return item
+
+    return f"File '{plain_name}' not found in '{path_str}'."
+
+
 def download_file(file_name):
     destination_path = os.getcwd() + "/client/downloads/"
+    path = get_full_curr_dir()
     try:
-        encrypted_file_name = find_encrypted_directory_name(client_index.index, file_name, 'file')
+
+        encrypted_file_name = find_file_in_structure(client_index.index, path, file_name)
 
         if encrypted_file_name is None:
             return "file not found"
 
-        response = requests.get('http://localhost:5000/download_file', params={'encrypted_file_name': encrypted_file_name}, stream=True)
+        response = requests.get('http://localhost:5000/download_file', params={'encrypted_file_name': encrypted_file_name[2]}, stream=True)
         response.raise_for_status()
 
         encrypted_content = b''
