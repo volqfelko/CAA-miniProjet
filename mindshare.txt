@@ -29,12 +29,42 @@ Récupère la clé symmetrique du dossier parent dans client.index struct
 Chiffre le file name avec
 Chiffre le file content avec
 
-
-
+C:\Users\Luca\Downloads\test.txt
+server_entry = ['file', '', encrypted_file_name, '', '']
 
 srv struct : [filtype, "", encrypted filename, "", encrypted_symm_key, potentiel sufolder[] ]
 
 
 client struct : [filtype, plain filename, encrypted filename, plain encrypted_symm_key, encrypted_symm_key, potentiel sufolder[] ]
+
+
+
+def decrypt_all_files_and_complete_list(directory_structure, previous_key):
+    for entry in directory_structure:
+
+        exists, parent_entry = find_parent_of_entry(directory_structure, entry)
+        if exists:
+            encrypted_symmetric_key = entry[4]
+            padded_encrypted_symmetric_key = pad_base64(encrypted_symmetric_key)
+            IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_encrypted_symmetric_key))
+            cipher = ChaCha20_Poly1305.new(key=previous_key, nonce=IV)
+            decrypted_symmetric_key = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
+            previous_key = decrypted_symmetric_key
+            entry[3] = decrypted_symmetric_key
+
+        else:
+            entry[3] = client_index.symmetric_key
+            folder_name = entry[2]
+            padded_folder_name = pad_base64(folder_name)
+            IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_folder_name))
+            cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
+            decrypted_name = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
+            entry[1] = decrypted_name
+            previous_key = client_index.symmetric_key
+
+        if entry[0] == 'directory' and len(entry) > 5:  # It's a directory
+            decrypt_all_files_and_complete_list(entry[5], previous_key)
+
+    client_index.index = directory_structure
 
 

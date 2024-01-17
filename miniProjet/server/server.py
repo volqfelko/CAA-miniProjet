@@ -129,13 +129,14 @@ def file_upload():
     # If the user does not select a file
     if file.filename == '':
         return "No file selected", 400
-
+    app.logger.warning("1 : " + str(file.filename))
     # Save the file
     filename = secure_filename(file.filename)
+    app.logger.warning("2 : " + str(filename))
     file.save(os.path.join(FILESYSTEM, filename))
 
     dir_structure = get_personal_file_struct()
-    server_entry = ['file', '', filename, '', '']
+    server_entry = ['file', '', str(filename), '', '']
 
     if not dir_structure:
         first_entry = [server_entry]

@@ -1,8 +1,6 @@
 import os
 import secrets
-
 import requests
-from Crypto.Random import get_random_bytes
 
 from Crypto.Protocol.KDF import HKDF
 from client.crypto import *
@@ -130,12 +128,13 @@ def upload_file(file_path):
 
     file_name = file_path.split('\\')[-1]
     encrypted_file_name = encrypt_data(parent_symmetric_key, file_name.encode())
+
     files = {'file': (encrypted_file_name, encrypted_file)}
 
     # Send the encrypted file to the server
     response = requests.post('http://localhost:5000/file_upload', files=files)
 
-    entry = ['file', file_name, encrypted_file_name.encode()]
+    entry = ['file', file_name, encrypted_file_name]
     result = insert_entry_in_structure(client_index.index, full_curr_path, entry)
 
     if result is False:
@@ -181,9 +180,16 @@ def download_file(file_name):
         encrypted_content_b64 = encrypted_content.decode('utf-8')
         padded_encrypted_content = pad_base64(encrypted_content_b64)
 
+        full_curr_path = get_full_curr_dir()
+        exists, parent = find_parent_structure(client_index.index, full_curr_path)
+        if exists:
+            parent_symmetric_key = parent[3]
+        else:
+            parent_symmetric_key = client_index.symmetric_key
+
         IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_encrypted_content))
         # Use the symmetric key to decrypt the private key
-        cipher = ChaCha20_Poly1305.new(key=client_index.symmetric_key, nonce=IV)
+        cipher = ChaCha20_Poly1305.new(key=parent_symmetric_key, nonce=IV)
         decrypted_content = cipher.decrypt_and_verify(ciphertext, tag)
 
         # Write the decrypted content to a file
@@ -344,7 +350,7 @@ def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, dept
 
         elif entry[0] == 'file':
             # Decrypt file name
-            decrypted_file_name = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[2]))
+            decrypted_file_name = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[2])).decode()
             entry[1] = decrypted_file_name
 
     client_index.index = directory_structure
@@ -371,6 +377,7 @@ def find_parent_of_entry(directory_structure, entry_name):
         return False, None
 
     return traverse(directory_structure)
+
 
 def print_tree_structure(directory_structure, indent_level=0):
     indent = '    ' * indent_level  # 4 spaces per indentation level
