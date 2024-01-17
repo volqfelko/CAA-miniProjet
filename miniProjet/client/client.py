@@ -338,7 +338,8 @@ def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, dept
                 nested_symmetric_key = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[4]))
 
             # Decrypt the folder name with the current symmetric key
-            decrypted_folder_name = decrypt_data2(nested_symmetric_key, base64.urlsafe_b64decode(entry[2]))
+            padded_folder_name = pad_base64(entry[2])
+            decrypted_folder_name = decrypt_data2(nested_symmetric_key, base64.urlsafe_b64decode(padded_folder_name))
             entry[1] = decrypted_folder_name.decode()
 
             # Determine the symmetric key for the nested directory
@@ -350,7 +351,8 @@ def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, dept
 
         elif entry[0] == 'file':
             # Decrypt file name
-            decrypted_file_name = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[2])).decode()
+            padded_file_name = pad_base64(entry[2])
+            decrypted_file_name = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(padded_file_name)).decode()
             entry[1] = decrypted_file_name
 
     client_index.index = directory_structure

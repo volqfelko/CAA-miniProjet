@@ -72,6 +72,7 @@ def main():
                         if response.status_code == 200:
                             choice = input("\n" + "wich directory do you want to move to ? ")
                             change_current_directory(choice)
+                            change_current_directory(choice)
                         else:
                             print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
 
