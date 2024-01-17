@@ -2,7 +2,7 @@ import os
 import requests
 
 from client.crypto import *
-from client.index import ClientIndex, find_encrypted_directory_name, find_decrypted_directory_name, find_parent_structure, insert_entry_in_structure, find_file_in_structure
+from client.index import ClientIndex, find_directory_by_encrypted_name, find_encrypted_directory_name, find_parent_structure, insert_entry_in_structure, find_file_in_structure
 
 client_index = ClientIndex(None, None, None, None)
 
@@ -25,15 +25,16 @@ def get_full_curr_dir():
         return response
 
 
+
 def get_curr_dir():
     response = requests.get('http://localhost:5000/get_curr_dir')
     datas = response.json()
     if response.status_code == 200:
-        new_dir = find_decrypted_directory_name(client_index.index, datas['curr_dir'], 'directory')
+        new_dir = find_directory_by_encrypted_name(client_index.index, datas['curr_dir'])
         if new_dir is not None:
-            print("Current directory: " + str(new_dir) + "\n")
+            print("\nCurrent directory: " + str(new_dir) + "\n")
             return
-        print("Current directory: " + str(datas['curr_dir'] + "\n"))
+        print("\nCurrent directory: ~ \n")
     else:
         return None
 
@@ -247,10 +248,7 @@ def create_folder(plain_folder_name):
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
-def print_tree_structure(directory_structure, indent_level=0):
-    # Base indentation using 4 spaces
-    base_indent = '    '
-
+def print_tree_structure(directory_structure, indent_level=0, prefix=''):
     # Visual elements for tree structure
     branch = '│   '
     tee = '├── '
@@ -261,10 +259,7 @@ def print_tree_structure(directory_structure, indent_level=0):
         is_last = (index == len(directory_structure) - 1)
 
         # Indentation for the current level
-        if indent_level > 0:
-            indent = base_indent * (indent_level - 1) + (last if is_last else tee)
-        else:
-            indent = ''
+        indent = prefix + (last if is_last else tee)
 
         # Print the folder name
         folder_name = entry[1]
@@ -272,9 +267,9 @@ def print_tree_structure(directory_structure, indent_level=0):
 
         # If there are subfolders, recursively print them with increased indentation
         if len(entry) > 5:  # Check if there is a subfolder list in the entry
-            # Additional branch elements for subdirectories
-            sub_indent = base_indent * indent_level + (branch if not is_last else base_indent)
-            print_tree_structure(entry[5], indent_level + 1)
+            # Determine the prefix for the next level of subdirectories
+            new_prefix = prefix + (branch if not is_last else '    ')
+            print_tree_structure(entry[5], indent_level + 1, new_prefix)
 
 
 def change_current_directory(new_curr_directory):

@@ -28,21 +28,6 @@ def find_encrypted_directory_name(directory_structure, encrypted_name, file_type
     return None  # Return None if the directory is not found
 
 
-def find_decrypted_directory_name(directory_structure, decrypted_name, file_type):
-    for entry in directory_structure:
-        entry_name = entry[2]
-        if entry_name == decrypted_name and entry[0] == file_type:
-            return entry[1]  # Return the associated decrypted name
-
-        # If there are subfolders, recursively search them
-        if len(entry) == 4:  # Check if there is a subfolder list in the entry
-            found = find_decrypted_directory_name(entry[3], decrypted_name, file_type)
-            if found is not None:
-                return found
-
-    return None  # Return None if the directory is not found
-
-
 def find_file_in_structure(structure, path_str, plain_name):
     def find_subfolder(folder, subfolder_name):
         for item in folder:
@@ -125,3 +110,28 @@ def find_parent_structure(directory_structure, path):
                 return True, entry
 
     return traverse(directory_structure)
+
+
+def find_directory_by_encrypted_name(structure, encrypted_dir_name):
+    def find_directory(folder, encrypted_name):
+        for item in folder:
+            # Check if the item is a directory and matches the encrypted name
+            if item[0] == 'directory' and item[2] == encrypted_name:
+                return item[1]  # Return the decrypted (plain) name of the directory
+        return None
+
+    # Recursively search in the structure
+    def search_recursive(folder):
+        result = find_directory(folder, encrypted_dir_name)
+        if result:
+            return result
+        for item in folder:
+            if item[0] == 'directory' and len(item) > 5:
+                # Search in subdirectories
+                sub_result = search_recursive(item[5])
+                if sub_result:
+                    return sub_result
+        return None
+
+    # Start the recursive search from the root structure
+    return search_recursive(structure)
