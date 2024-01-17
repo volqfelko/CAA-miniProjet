@@ -1,14 +1,18 @@
+import secrets
+import base64
+
 from Crypto.Hash import SHA256
 from Crypto.Cipher import ChaCha20_Poly1305
+from Crypto.Protocol.KDF import HKDF
 from Crypto.PublicKey import RSA
 from argon2 import PasswordHasher
-import base64
+
 
 # Constants for key generation and encryption
 HASH_TRUNCATION_SIZE = 16  # 128 bits
-RSA_KEY_SIZE = 2048
-CHA_CHA20_KEY_SIZE = 32  # 256 bits
-CHA_CHA20_KEY_SIZE_BITS = 256  # 256 bits
+RSA_KEY_SIZE = 2048  # 2048 bits
+KEY_SIZE_BYTES = 32  # 256 bits
+KEY_SIZE_BITS = 256  # 256 bits
 HKDF_INFO = b'client-auth'
 
 # Initialize Argon2 PasswordHasher
@@ -29,11 +33,20 @@ def encrypt_data(key, data):
     return base64.urlsafe_b64encode(cipher.nonce + tag + ciphertext).decode()
 
 
+def decrypt_data(key, data):
+    IV, tag, ciphertext = extract_chacha_cipher_infos(data)
+    cipher = ChaCha20_Poly1305.new(key=key, nonce=IV)
+    return cipher.decrypt_and_verify(ciphertext, tag)
+
+
+def stretch_key(entry, salt):
+    return HKDF(entry, KEY_SIZE_BYTES, salt, SHA256, context=HKDF_INFO)
+
+
 def extract_chacha_cipher_infos(cipher):
     IV = cipher[:12]
     tag = cipher[12:28]
     ciphertext = cipher[28:]
-
     return IV, tag, ciphertext
 
 
@@ -42,3 +55,7 @@ def generate_rsa_key_pair():
     public_key = rsa_key.publickey().export_key()
     private_key = rsa_key.export_key()
     return private_key, public_key
+
+
+def generate_symmetric_key():
+    return secrets.randbits(KEY_SIZE_BITS).to_bytes(KEY_SIZE_BYTES, byteorder='big')

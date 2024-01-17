@@ -1,6 +1,6 @@
 from client.client import (create_account, login, upload_file, download_file,
                            create_folder, change_password, print_tree_structure,
-                           change_current_directory, client_index, get_curr_dir)
+                           change_current_directory, client_index, get_curr_dir, get_usernames)
 
 
 def main():
@@ -37,8 +37,9 @@ def main():
                     print("3. Create folder")
                     print("4. List directories")
                     print("5. Change directory")
-                    print("6. Change Password")
-                    print("7. Exit")
+                    print("6. Share current folder")
+                    print("7. Change Password")
+                    print("8. Exit")
                     choice = input("\n" + "Choose an option: ")
 
                     if choice == '1':
@@ -70,12 +71,20 @@ def main():
 
                     elif choice == '5':
                         if response.status_code == 200:
-                            choice = input("\n" + "wich directory do you want to move to ? ")
+                            choice = input("\n" + "Wich directory do you want to move to ? ")
                             change_current_directory(choice)
                         else:
                             print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '6':
+                        if response.status_code == 200:
+                            print("Usernames : " + str(get_usernames()))
+                            choice = input("\n" + "With whom do you want to share your current directory ? ")
+
+                        else:
+                            print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
+
+                    elif choice == '7':
                         new_password = input("Enter your new master password: ")
                         response = change_password(username, new_password)
                         if response.status_code == 200:
@@ -83,7 +92,7 @@ def main():
                         else:
                             print("\n" + "Password change failed: " + response.json().get('error', 'Unknown error'))
 
-                    elif choice == '7':
+                    elif choice == '8':
                         print("\n" + "Exiting the application.")
                         return
             else:

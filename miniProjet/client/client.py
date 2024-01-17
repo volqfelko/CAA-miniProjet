@@ -1,13 +1,50 @@
-import json
 import os
-import secrets
 import requests
 
-from Crypto.Protocol.KDF import HKDF
 from client.crypto import *
-from client.index import ClientIndex, find_encrypted_directory_name, find_decrypted_directory_name
+from client.index import ClientIndex, find_encrypted_directory_name, find_decrypted_directory_name, find_parent_structure, insert_entry_in_structure, find_file_in_structure
 
 client_index = ClientIndex(None, None, None, None)
+
+
+def get_usernames():
+    response = requests.get('http://localhost:5000/get_usernames')
+    if response.status_code == 200:
+        data = response.json()
+        return data['usernames']
+    else:
+        return response
+
+
+def get_full_curr_dir():
+    response = requests.get('http://localhost:5000/get_full_curr_dir')
+    if response.status_code == 200:
+        data = response.json()
+        return data['full_cur_path']
+    else:
+        return response
+
+
+def get_curr_dir():
+    response = requests.get('http://localhost:5000/get_curr_dir')
+    datas = response.json()
+    if response.status_code == 200:
+        new_dir = find_decrypted_directory_name(client_index.index, datas['curr_dir'], 'directory')
+        if new_dir is not None:
+            print("Current directory: " + str(new_dir) + "\n")
+            return
+        print("Current directory: " + str(datas['curr_dir'] + "\n"))
+    else:
+        return None
+
+
+def get_files_list():
+    response = requests.post('http://localhost:5000/get_personal_file_struct')
+    if response.status_code == 200:
+        directories = response.json()
+        decrypt_all_files_and_complete_list(directories, client_index.symmetric_key)
+    else:
+        print("Failed to retrieve directories")
 
 
 def create_account(username, master_password):
@@ -18,14 +55,13 @@ def create_account(username, master_password):
     # Step 5: Generate master password hash
     master_password_hash = argon2_hash(master_password, master_key).encode('utf-8')[-16:]
 
-    #TODO salt HKDF ????
-    stretched_master_key = HKDF(master_key, 32, salt, SHA256, context=HKDF_INFO)
+    stretched_master_key = stretch_key(master_key, salt)
 
     # Step 6: Generate RSA key pair
     public_key, private_key = generate_rsa_key_pair()
 
     # Step 7-8: Encrypt the symmetric key and private RSA key
-    symmetric_key = secrets.randbits(CHA_CHA20_KEY_SIZE_BITS).to_bytes(CHA_CHA20_KEY_SIZE, byteorder='big')
+    symmetric_key = generate_symmetric_key()
     encrypted_symmetric_key = encrypt_data(stretched_master_key, symmetric_key)
     encrypted_private_key = encrypt_data(symmetric_key, private_key)
 
@@ -51,8 +87,7 @@ def login(username, master_password):
 
     # Prepare the master key for encryption by ensuring it's the right size
     master_password_hash = argon2_hash(master_password, master_key).encode('utf-8')[-16:]
-
-    stretched_master_key = HKDF(master_key, 32, salt, SHA256, context=HKDF_INFO)
+    stretched_master_key = stretch_key(master_key, salt)
 
     # Send the hashed username and master key to the server for authentication
     login_data = {
@@ -69,23 +104,15 @@ def login(username, master_password):
         encrypted_symmetric_key = base64.urlsafe_b64decode(keys['encrypted_symmetric_key'])
         encrypted_private_key = base64.urlsafe_b64decode(keys['encrypted_private_key'])
 
-        IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_symmetric_key)
-        # Use the master key to decrypt the symmetric key
-        cipher = ChaCha20_Poly1305.new(key=stretched_master_key, nonce=IV)
-
-        symmetric_key = cipher.decrypt_and_verify(ciphertext, tag)
-
-        IV, tag, ciphertext = extract_chacha_cipher_infos(encrypted_private_key)
-        # Use the symmetric key to decrypt the private key
-        cipher = ChaCha20_Poly1305.new(key=symmetric_key, nonce=IV)
-        private_key = cipher.decrypt_and_verify(ciphertext, tag)
+        symmetric_key = decrypt_data(stretched_master_key,encrypted_symmetric_key)
+        private_key = decrypt_data(symmetric_key, encrypted_private_key)
 
         client_index.symmetric_key = symmetric_key
         client_index.symmetric_key_encrypted = encrypted_symmetric_key
         client_index.private_key = private_key
         client_index.private_key_encrypted = encrypted_private_key
 
-        #Decrypt everything in vault first login and populate client_index
+        # Decrypt everything in vault first login and populate client_index
         get_files_list()
         return response
     else:
@@ -99,7 +126,7 @@ def change_password(username, new_master_password):
     # Prepare the master key for encryption by ensuring it's the right size
     new_master_password_hash = argon2_hash(new_master_password, new_master_key).encode('utf-8')[-16:]
 
-    new_stretched_master_key = HKDF(new_master_key, 32, salt, SHA256, context=HKDF_INFO)
+    new_stretched_master_key = stretch_key(new_master_key, salt)
 
     # Encrypt symmetric and private keys with new stretched master key
     new_protected_symmetric_key = encrypt_data(new_stretched_master_key, client_index.symmetric_key)
@@ -151,58 +178,10 @@ def upload_file(file_path):
     return response
 
 
-def get_full_curr_dir():
-    response = requests.get('http://localhost:5000/get_full_curr_dir')
-    if response.status_code == 200:
-        data = response.json()
-        return data['full_cur_path']
-    else:
-        return response
-
-
-def get_curr_dir():
-    response = requests.get('http://localhost:5000/get_curr_dir')
-    if response.status_code == 200:
-        data = response.json()
-        return data['curr_dir']
-    else:
-        return response
-
-
-def find_file_in_structure(structure, path_str, plain_name):
-    def find_subfolder(folder, subfolder_name):
-        for item in folder:
-            if item[0] == 'directory' and item[2] == subfolder_name:
-                return item[5]  # The subfolder list
-        return None
-
-    # Check if the path string is empty and set the current structure accordingly
-    if path_str == "":
-        current_structure = structure
-    else:
-        # Split the path string into a list of folder names
-        path = path_str.split('\\')
-
-        # Navigate to the given path
-        current_structure = structure
-        for folder_name in path:
-            current_structure = find_subfolder(current_structure, folder_name)
-            if current_structure is None:
-                return f"Path '{path_str}' does not exist."
-
-    # Search for the file in the final directory
-    for item in current_structure:
-        if item[0] != 'directory' and item[1] == plain_name:
-            return item
-
-    return f"File '{plain_name}' not found in '{path_str}'."
-
-
 def download_file(file_name):
     destination_path = os.getcwd() + "/client/downloads/"
     path = get_full_curr_dir()
     try:
-
         encrypted_file_name = find_file_in_structure(client_index.index, path, file_name)
 
         if encrypted_file_name is None:
@@ -225,11 +204,7 @@ def download_file(file_name):
         else:
             parent_symmetric_key = client_index.symmetric_key
 
-        IV, tag, ciphertext = extract_chacha_cipher_infos(base64.urlsafe_b64decode(padded_encrypted_content))
-        # Use the symmetric key to decrypt the private key
-        cipher = ChaCha20_Poly1305.new(key=parent_symmetric_key, nonce=IV)
-        decrypted_content = cipher.decrypt_and_verify(ciphertext, tag)
-
+        decrypted_content = decrypt_data(parent_symmetric_key,base64.urlsafe_b64decode(padded_encrypted_content))
         # Write the decrypted content to a file
         full_path = os.path.join(destination_path, file_name)
         with open(full_path, 'wb') as f:
@@ -237,13 +212,7 @@ def download_file(file_name):
 
         return "File downloaded successfully."
     except requests.exceptions.HTTPError as errh:
-        return f"HTTP Error: {errh}"
-    except requests.exceptions.ConnectionError as errc:
-        return f"Error Connecting: {errc}"
-    except requests.exceptions.Timeout as errt:
-        return f"Timeout Error: {errt}"
-    except requests.exceptions.RequestException as err:
-        return f"Error: {err}"
+        return "An Http Error occurred:" + repr(errh)
 
 
 def create_folder(plain_folder_name):
@@ -256,7 +225,7 @@ def create_folder(plain_folder_name):
         server_entry = ['directory', '', encrypted_folder_name, '',
                         base64.urlsafe_b64encode(symmetric_key_encrypted).decode()]
     else:
-        new_plain_symmetric_key = secrets.randbits(CHA_CHA20_KEY_SIZE_BITS).to_bytes(CHA_CHA20_KEY_SIZE, byteorder='big')
+        new_plain_symmetric_key = generate_symmetric_key()
         encrypted_folder_name = encrypt_data(new_plain_symmetric_key, plain_folder_name.encode())
         exists, parent_directory = find_parent_structure(client_index.index, full_curr_path)
         parent_directory_symmetric_key = parent_directory[3]
@@ -269,7 +238,6 @@ def create_folder(plain_folder_name):
         print("Failed to create folder at right index")
         return
 
-
     new_folder = {
         'encrypted_folder_name': encrypted_folder_name,
         'server_entry': server_entry
@@ -279,75 +247,23 @@ def create_folder(plain_folder_name):
     return requests.post('http://localhost:5000/create_folder', json=new_folder)
 
 
-def insert_entry_in_structure(directory_structure, path, new_entry):
-    def recurse_and_insert(structure, path_components):
-        current_component = path_components[0]
-        for entry in structure:
-            if entry[0] in ['directory', 'file'] and entry[2] == current_component:
-                if entry[0] == 'directory':
-                    if len(entry) <= 5:
-                        entry.append([])  # Ensure there's a list to append to if it doesn't exist
-                    if len(path_components) == 1:
-                        # Insert the new entry in the current directory
-                        entry[5].append(new_entry)
-                        return True
-                    # Recurse into the directory
-                    return recurse_and_insert(entry[5], path_components[1:])
-        return False
+def print_tree_structure(directory_structure, indent_level=0):
+    indent = '    ' * indent_level  # 4 spaces per indentation level
+    for entry in directory_structure:
+        # Print the folder name
+        folder_name = entry[1]
+        print(f"{indent}{folder_name}")
 
-    # Check if path is empty and insert new_entry at the next index
-    path_components = path.split('\\')
-    if not path_components or path_components == ['']:
-        directory_structure.append(new_entry)
-        return True
-
-    return recurse_and_insert(directory_structure, path_components)
-
-
-def find_parent_structure(directory_structure, path):
-    path_components = path.split('\\')
-
-    def traverse(structure, index=0):
-        for entry in structure:
-            if index >= len(path_components):
-                # Return the parent structure for the last path component
-                return True, entry
-            elif entry[0] == 'directory' and entry[2] == path_components[index]:
-                # If it's a directory and the name matches, go deeper
-                if len(entry) > 5 and isinstance(entry[5], list):
-                    return traverse(entry[5], index + 1)
-                elif index == len(path_components) - 1:
-                    return True, entry
-            elif entry[0] == 'file' and entry[2] == path_components[index]:
-                # If it's a file and it's the last component in the path
-                if index == len(path_components) - 1:
-                    return True, entry
-
-        return False, None
-
-    # Handle the case where the path is only one component
-    if len(path_components) == 1:
-        for entry in directory_structure:
-            if entry[0] in ['directory', 'file'] and entry[2] == path_components[0]:
-                return True, entry
-
-    return traverse(directory_structure)
-
-
-def get_files_list():
-    response = requests.post('http://localhost:5000/get_personal_file_struct')
-    if response.status_code == 200:
-        directories = response.json()
-        decrypt_all_files_and_complete_list(directories, client_index.symmetric_key)
-    else:
-        print("Failed to retrieve directories")
+        # If there are subfolders, recursively print them with increased indentation
+        if len(entry) > 5:  # Check if there is a suvbfolder list in the entry
+            print_tree_structure(entry[5], indent_level + 1)
 
 
 def change_current_directory(new_curr_directory):
     # TODO GO BACKWARDS, FOR NOW IT ONLY GOES FORWARD
     encrypted_folder_name = find_encrypted_directory_name(client_index.index, new_curr_directory, 'directory')
     if encrypted_folder_name is None:
-        print("Directory not found")
+        print("Directory not found \n")
         return
 
     encrypted_new_curr_directory = {
@@ -356,9 +272,9 @@ def change_current_directory(new_curr_directory):
     response = requests.post('http://localhost:5000/change_directory', json=encrypted_new_curr_directory)
 
     if response.status_code == 200:
-        print("Changed directory successfully")
+        print("Changed directory successfully \n")
     else:
-        print("Failed to change directory")
+        print("Failed to change directory \n")
 
 
 def pad_base64(b64string):
@@ -373,11 +289,11 @@ def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, dept
 
         if entry[0] == 'directory':
             # Decrypt the nested directory's symmetric key if depth > 0
-            nested_symmetric_key = decrypt_data2(current_symmetric_key, base64.urlsafe_b64decode(entry[4])) if depth > 0 else symmetric_key
+            nested_symmetric_key = decrypt_data(current_symmetric_key, base64.urlsafe_b64decode(entry[4])) if depth > 0 else symmetric_key
 
             # Decrypt the folder name
             padded_folder_name = pad_base64(entry[2])
-            decrypted_folder_name = decrypt_data2(nested_symmetric_key, base64.urlsafe_b64decode(padded_folder_name))
+            decrypted_folder_name = decrypt_data(nested_symmetric_key, base64.urlsafe_b64decode(padded_folder_name))
             entry[1] = decrypted_folder_name.decode()
 
             entry[3] = nested_symmetric_key
@@ -389,25 +305,7 @@ def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, dept
             # Decrypt file name with the parent directory's symmetric key
             entry[3] = current_symmetric_key
             padded_file_name = pad_base64(entry[2])
-            decrypted_file_name = decrypt_data2(current_symmetric_key, base64.urlsafe_b64decode(padded_file_name)).decode()
+            decrypted_file_name = decrypt_data(current_symmetric_key, base64.urlsafe_b64decode(padded_file_name)).decode()
             entry[1] = decrypted_file_name
 
     client_index.index = directory_structure
-
-
-def decrypt_data2(key, data):
-    IV, tag, ciphertext = extract_chacha_cipher_infos(data)
-    cipher = ChaCha20_Poly1305.new(key=key, nonce=IV)
-    return cipher.decrypt_and_verify(ciphertext, tag)
-
-
-def print_tree_structure(directory_structure, indent_level=0):
-    indent = '    ' * indent_level  # 4 spaces per indentation level
-    for entry in directory_structure:
-        # Print the folder name
-        folder_name = entry[1]
-        print(f"{indent}{folder_name}")
-
-        # If there are subfolders, recursively print them with increased indentation
-        if len(entry) > 5:  # Check if there is a suvbfolder list in the entry
-            print_tree_structure(entry[5], indent_level + 1)

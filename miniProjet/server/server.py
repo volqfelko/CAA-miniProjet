@@ -3,7 +3,6 @@ from werkzeug.utils import secure_filename
 import os
 import json
 
-
 app = Flask(__name__)
 
 users_file = 'users.json'
@@ -29,6 +28,17 @@ def get_full_curr_dir():
     if second_backslash_index != -1:
         return jsonify({"full_cur_path": second_backslash_index}), 200
     return jsonify({"full_cur_path": FILESYSTEM}), 200
+
+
+@app.route('/get_usernames', methods=['GET'])
+def get_usernames():
+    try:
+        with open(users_file, 'r') as file:
+            data = json.load(file)
+            usernames = [user_info['username'] for user_info in data.values()]
+            return jsonify({"usernames": usernames}), 200
+    except Exception as e:
+        return f"An error occurred: {e}", 400
 
 
 @app.route('/register', methods=['POST'])
