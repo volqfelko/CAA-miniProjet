@@ -1,3 +1,4 @@
+import json
 import os
 import secrets
 import requests
@@ -129,10 +130,16 @@ def upload_file(file_path):
     file_name = file_path.split('\\')[-1]
     encrypted_file_name = encrypt_data(parent_symmetric_key, file_name.encode())
 
+    datas = {
+        'file_type': 'file',
+        'encrypted_file_name': encrypted_file_name,
+        'parent_symmetric_key': base64.urlsafe_b64encode(parent_symmetric_key).decode()
+    }
+
     files = {'file': (encrypted_file_name, encrypted_file)}
 
     # Send the encrypted file to the server
-    response = requests.post('http://localhost:5000/file_upload', files=files)
+    response = requests.post('http://localhost:5000/file_upload', files=files, params=datas)
 
     entry = ['file', file_name, encrypted_file_name]
     result = insert_entry_in_structure(client_index.index, full_curr_path, entry)
@@ -329,30 +336,29 @@ def pad_base64(b64string):
     return b64string + ("=" * padding)
 
 
-def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, depth=0):
+def decrypt_all_files_and_complete_list(directory_structure, symmetric_key, depth=0, parent_symmetric_key=None):
     for entry in directory_structure:
-        if entry[0] == 'directory':
-            nested_symmetric_key = symmetric_key
-            if depth > 0:
-                # Decrypt the nested directory's symmetric key with the current symmetric key
-                nested_symmetric_key = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(entry[4]))
+        current_symmetric_key = symmetric_key if depth == 0 else parent_symmetric_key
 
-            # Decrypt the folder name with the current symmetric key
+        if entry[0] == 'directory':
+            # Decrypt the nested directory's symmetric key if depth > 0
+            nested_symmetric_key = decrypt_data2(current_symmetric_key, base64.urlsafe_b64decode(entry[4])) if depth > 0 else symmetric_key
+
+            # Decrypt the folder name
             padded_folder_name = pad_base64(entry[2])
             decrypted_folder_name = decrypt_data2(nested_symmetric_key, base64.urlsafe_b64decode(padded_folder_name))
             entry[1] = decrypted_folder_name.decode()
 
-            # Determine the symmetric key for the nested directory
             entry[3] = nested_symmetric_key
-
             # Recursively process subdirectories
             if len(entry) > 5:
-                decrypt_all_files_and_complete_list(entry[5], nested_symmetric_key, depth + 1)
+                decrypt_all_files_and_complete_list(entry[5], symmetric_key, depth + 1, nested_symmetric_key)
 
         elif entry[0] == 'file':
-            # Decrypt file name
+            # Decrypt file name with the parent directory's symmetric key
+            entry[3] = current_symmetric_key
             padded_file_name = pad_base64(entry[2])
-            decrypted_file_name = decrypt_data2(symmetric_key, base64.urlsafe_b64decode(padded_file_name)).decode()
+            decrypted_file_name = decrypt_data2(current_symmetric_key, base64.urlsafe_b64decode(padded_file_name)).decode()
             entry[1] = decrypted_file_name
 
     client_index.index = directory_structure
@@ -362,23 +368,6 @@ def decrypt_data2(key, data):
     IV, tag, ciphertext = extract_chacha_cipher_infos(data)
     cipher = ChaCha20_Poly1305.new(key=key, nonce=IV)
     return cipher.decrypt_and_verify(ciphertext, tag)
-
-
-def find_parent_of_entry(directory_structure, entry_name):
-    def traverse(structure):
-        for entry in structure:
-            if entry[0] in ['directory', 'file'] and entry[2] == entry_name[2]:
-                return True, entry
-
-            # If it's a directory, go deeper
-            if entry[0] == 'directory' and len(entry) > 5 and isinstance(entry[5], list):
-                found, parent_structure = traverse(entry[5])
-                if found:
-                    return True, parent_structure
-
-        return False, None
-
-    return traverse(directory_structure)
 
 
 def print_tree_structure(directory_structure, indent_level=0):

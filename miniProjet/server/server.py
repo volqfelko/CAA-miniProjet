@@ -63,7 +63,7 @@ def register():
 
     personal_data_file_path = os.path.join(user_folder_path, personal_data_file)
     with open(personal_data_file_path, 'w') as file:
-        json.dump(personal_directory_struct, file, indent=2)
+        json.dump(personal_directory_struct, file, indent=0)
 
     return jsonify({'success': 'User registered and personnal vault created'}), 200
 
@@ -129,14 +129,18 @@ def file_upload():
     # If the user does not select a file
     if file.filename == '':
         return "No file selected", 400
-    app.logger.warning("1 : " + str(file.filename))
+
     # Save the file
     filename = secure_filename(file.filename)
-    app.logger.warning("2 : " + str(filename))
     file.save(os.path.join(FILESYSTEM, filename))
 
     dir_structure = get_personal_file_struct()
-    server_entry = ['file', '', str(filename), '', '']
+
+    file_type = request.args.get('file_type')
+    encrypted_file_name = request.args.get('encrypted_file_name')
+    parent_symmetric_key = request.args.get('parent_symmetric_key')
+
+    server_entry = [file_type, '', encrypted_file_name, '', parent_symmetric_key]
 
     if not dir_structure:
         first_entry = [server_entry]
@@ -247,7 +251,9 @@ def change_current_directory():
 
     try:
         # Change the current working directory
+        app.logger.warning("change_current_directory 1 : " + str(FILESYSTEM))
         update_curr_dir(encrypted_directory_name)
+        app.logger.warning("change_current_directory 2 : " + str(FILESYSTEM))
         return jsonify({"success": True, "current_directory": encrypted_directory_name}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

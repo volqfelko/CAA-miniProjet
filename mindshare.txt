@@ -30,6 +30,7 @@ Chiffre le file name avec
 Chiffre le file content avec
 
 C:\Users\Luca\Downloads\test.txt
+C:\Users\Luca\Downloads\BlockTheSpotCommand.txt
 server_entry = ['file', '', encrypted_file_name, '', '']
 
 srv struct : [filtype, "", encrypted filename, "", encrypted_symm_key, potentiel sufolder[] ]
