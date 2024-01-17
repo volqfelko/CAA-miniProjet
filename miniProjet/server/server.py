@@ -219,37 +219,6 @@ def update_personal_file_struct(new_entry):
     except FileNotFoundError:
         print("The file was not found.")
 
-"""
-@app.route('/list_directories', methods=['POST'])
-def list_user_directories():
-    # Recursive function to get directory and file structure
-    def get_directory_structure(path):
-        structure = []
-        for item in os.listdir(path):
-            full_path = os.path.join(path, item)
-            if os.path.isdir(full_path):
-                # Recursive call for subfolders
-                subfolders = get_directory_structure(full_path)
-
-                # 'Decrypted name' is a placeholder string "name"
-                decrypted_name = ""
-
-                # Add tuple with or without subfolders list based on its presence
-                if subfolders:
-                    structure.append(('directory', decrypted_name, item, subfolders))
-                else:
-                    structure.append(('directory', decrypted_name, item))
-            else:
-                # Handle files
-                decrypted_name = ""  # Replace with actual decrypted name if necessary
-                structure.append(('file', decrypted_name, item))
-
-        return structure
-
-    directory_structure = get_directory_structure(FILESYSTEM)
-    return jsonify(directory_structure), 200
-"""
-
 
 @app.route('/change_directory', methods=['POST'])
 def change_current_directory():
@@ -274,6 +243,7 @@ def insert_entry_in_structure(directory_structure, path, new_entry):
         directory_structure.append(new_entry)
         update_personal_file_struct(directory_structure)
         return True
+
     def recurse_and_insert(structure, path_components):
         current_component = path_components[0]
         for entry in structure:

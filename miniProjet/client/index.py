@@ -42,6 +42,7 @@ def find_decrypted_directory_name(directory_structure, decrypted_name, file_type
 
     return None  # Return None if the directory is not found
 
+
 def find_file_in_structure(structure, path_str, plain_name):
     def find_subfolder(folder, subfolder_name):
         for item in folder:

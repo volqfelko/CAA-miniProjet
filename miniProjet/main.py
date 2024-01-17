@@ -52,7 +52,11 @@ def main():
 
                     elif choice == '2':
                         file_name = input("Enter a file name to download: ")
-                        print(download_file(file_name))
+                        download_file(file_name)
+                        if response.status_code == 200:
+                            print("\n" + "*" * 30 + "\nFile " + str(file_name) + " downloaded.\n" + "*" * 30)
+                        else:
+                            print("\n" + "File download failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '3':
                         folder_name = input("Enter folder name to create: ")
@@ -63,26 +67,16 @@ def main():
                             print("\n" + "Folder creation failed: " + response.json().get('error', 'Unknown error'))
 
                     elif choice == '4':
-                        if response.status_code == 200:
-                            print("\nDirectories and files in your vault:\n")
-                            print_tree_structure(client_index.index)
-                        else:
-                            print("\n" + "File listing failed: " + response.json().get('error', 'Unknown error'))
+                        print("\nDirectories and files in your vault:\n")
+                        print_tree_structure(client_index.index)
 
                     elif choice == '5':
-                        if response.status_code == 200:
-                            choice = input("\n" + "Wich directory do you want to move to ? ")
-                            change_current_directory(choice)
-                        else:
-                            print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
+                        choice = input("\n" + "Wich directory do you want to move to ? ")
+                        change_current_directory(choice)
 
                     elif choice == '6':
-                        if response.status_code == 200:
-                            print("Usernames : " + str(get_usernames()))
-                            choice = input("\n" + "With whom do you want to share your current directory ? ")
-
-                        else:
-                            print("\n" + "Directory moving failed: " + response.json().get('error', 'Unknown error'))
+                        print("Usernames : " + str(get_usernames()))
+                        choice = input("\n" + "With whom do you want to share your current directory ? ")
 
                     elif choice == '7':
                         new_password = input("Enter your new master password: ")

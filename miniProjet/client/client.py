@@ -104,7 +104,7 @@ def login(username, master_password):
         encrypted_symmetric_key = base64.urlsafe_b64decode(keys['encrypted_symmetric_key'])
         encrypted_private_key = base64.urlsafe_b64decode(keys['encrypted_private_key'])
 
-        symmetric_key = decrypt_data(stretched_master_key,encrypted_symmetric_key)
+        symmetric_key = decrypt_data(stretched_master_key, encrypted_symmetric_key)
         private_key = decrypt_data(symmetric_key, encrypted_private_key)
 
         client_index.symmetric_key = symmetric_key
@@ -210,7 +210,7 @@ def download_file(file_name):
         with open(full_path, 'wb') as f:
             f.write(decrypted_content)
 
-        return "File downloaded successfully."
+        return response
     except requests.exceptions.HTTPError as errh:
         return "An Http Error occurred:" + repr(errh)
 
@@ -248,14 +248,32 @@ def create_folder(plain_folder_name):
 
 
 def print_tree_structure(directory_structure, indent_level=0):
-    indent = '    ' * indent_level  # 4 spaces per indentation level
-    for entry in directory_structure:
+    # Base indentation using 4 spaces
+    base_indent = '    '
+
+    # Visual elements for tree structure
+    branch = '│   '
+    tee = '├── '
+    last = '└── '
+
+    for index, entry in enumerate(directory_structure):
+        # Determine if this is the last item in the current directory
+        is_last = (index == len(directory_structure) - 1)
+
+        # Indentation for the current level
+        if indent_level > 0:
+            indent = base_indent * (indent_level - 1) + (last if is_last else tee)
+        else:
+            indent = ''
+
         # Print the folder name
         folder_name = entry[1]
         print(f"{indent}{folder_name}")
 
         # If there are subfolders, recursively print them with increased indentation
-        if len(entry) > 5:  # Check if there is a suvbfolder list in the entry
+        if len(entry) > 5:  # Check if there is a subfolder list in the entry
+            # Additional branch elements for subdirectories
+            sub_indent = base_indent * indent_level + (branch if not is_last else base_indent)
             print_tree_structure(entry[5], indent_level + 1)
 
 
