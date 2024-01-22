@@ -1,7 +1,7 @@
 import secrets
 import base64
 
-from Crypto.Hash import SHA256
+from Crypto.Hash import SHA3_256
 from Crypto.Cipher import ChaCha20_Poly1305
 from Crypto.Protocol.KDF import HKDF
 from Crypto.PublicKey import RSA
@@ -20,7 +20,7 @@ ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4, hash_len=16, 
 
 
 def hash_username(username):
-    return SHA256.new(username.encode()).digest()[:HASH_TRUNCATION_SIZE]
+    return SHA3_256.new(username.encode()).digest()[:HASH_TRUNCATION_SIZE]
 
 
 def argon2_hash(master_password, salt):
@@ -40,7 +40,7 @@ def decrypt_data(key, data):
 
 
 def stretch_key(entry, salt):
-    return HKDF(entry, KEY_SIZE_BYTES, salt, SHA256, context=HKDF_INFO)
+    return HKDF(entry, KEY_SIZE_BYTES, salt, SHA3_256, context=HKDF_INFO)
 
 
 def extract_chacha_cipher_infos(cipher):
