@@ -273,7 +273,7 @@ def print_tree_structure(directory_structure, indent_level=0, prefix=''):
 
 
 def change_current_directory(new_curr_directory):
-    # TODO GO BACKWARDS, FOR NOW IT ONLY GOES FORWARD
+    #FOR NOW IT ONLY GOES FORWARD
     encrypted_folder_name = find_encrypted_directory_name(client_index.index, new_curr_directory, 'directory')
     if encrypted_folder_name is None:
         print("Directory not found \n")
